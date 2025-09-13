@@ -1,6 +1,3 @@
-# Excel-mac-keytips
-Hammerspoon automation for Microsoft Excel on macOS that overlays custom KeyTips (Alt-style shortcuts) for Borders, Format, and Freeze menus. Provides native-like navigation with visual labels, consistent styling, and always-on reliability.
-
 # Excel Mac KeyTips (Hammerspoon)
 
 This project brings Windows-style **KeyTips** to Microsoft Excel on macOS using [Hammerspoon](https://www.hammerspoon.org/).  
