@@ -8,7 +8,7 @@ local keycodes  = require("hs.keycodes")
 
 local EXCEL_BUNDLE = "com.microsoft.Excel"
 
--- Borders (existing)
+-- Borders
 local LETTER_MAP_BORDERS = {
   B = { "Bottom Border" },
   T = { "Top Border" },
