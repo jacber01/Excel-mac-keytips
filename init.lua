@@ -1,46 +1,46 @@
-local app       = require("hs.application")
-local ax        = require("hs.axuielement")
-local eventtap  = require("hs.eventtap")
-local canvas    = require("hs.canvas")
-local screen    = require("hs.screen")
-local timer     = require("hs.timer")
-local keycodes  = require("hs.keycodes")
+local app = require("hs.application")
+local ax = require("hs.axuielement")
+local eventtap = require("hs.eventtap")
+local canvas = require("hs.canvas")
+local screen = require("hs.screen")
+local timer = require("hs.timer")
+local keycodes = require("hs.keycodes")
 
 local EXCEL_BUNDLE = "com.microsoft.Excel"
 
 -- Borders
 local LETTER_MAP_BORDERS = {
-  B = { "Bottom Border" },
-  T = { "Top Border" },
-  L = { "Left Border" },
-  R = { "Right Border" },
-  N = { "No Border" },
-  A = { "All Borders" },
-  O = { "Outside Borders" },
-  H = { "Thick Box Border" },
-  M = { "More Borders" },
+B = { "Bottom Border" },
+T = { "Top Border" },
+L = { "Left Border" },
+R = { "Right Border" },
+N = { "No Border" },
+A = { "All Borders" },
+O = { "Outside Borders" },
+H = { "Thick Box Border" },
+M = { "More Borders" },
 }
 
--- Format 
+-- Format
 local LETTER_MAP_FORMAT = {
-  H = { "Row Height" },
-  A = { "AutoFit Row Height" },
-  W = { "Column Width" },
-  I = { "AutoFit Column Width" },
-  D = { "Default Width" },
-  R = { "Rename Sheet" },
-  M = { "Move or Copy Sheet" },
-  T = { "Tab Color" },
-  P = { "Protect Sheet" },
-  L = { "Lock Cell" },
-  F = { "Format Cells" },
+H = { "Row Height" },
+A = { "AutoFit Row Height" },
+W = { "Column Width" },
+I = { "AutoFit Column Width" },
+D = { "Default Width" },
+R = { "Rename Sheet" },
+M = { "Move or Copy Sheet" },
+T = { "Tab Color" },
+P = { "Protect Sheet" },
+L = { "Lock Cell" },
+F = { "Format Cells" },
 }
 
 -- Freeze
 local LETTER_MAP_FREEZE = {
-  F = { "Freeze Panes" },
-  R = { "Freeze Top Row" },
-  C = { "Freeze First Column" },
+F = { "Freeze Panes" },
+R = { "Freeze Top Row" },
+C = { "Freeze First Column" },
 }
 
 -- ---------- helpers ----------
@@ -217,6 +217,7 @@ local function collectItems(letterMap)
   local container = findMenuContainerForMap(letterMap)
   if not container then return {} end
   local found = {}
+
   local function traverse(el, depth)
     depth = depth or 0
     if depth > 6 then return end
@@ -236,6 +237,7 @@ local function collectItems(letterMap)
     local kids = safeAttr(el, "AXChildren")
     if kids then for _, ch in ipairs(kids) do traverse(ch, depth + 1) end end
   end
+
   traverse(container, 0)
   return found
 end
@@ -245,6 +247,7 @@ local function collectFreezeItems()
   local container = findFreezeMenuContainer()
   if not container then return {} end
   local found = {}
+
   local function traverse(el, depth)
     depth = depth or 0
     if depth > 6 then return end
@@ -264,6 +267,7 @@ local function collectFreezeItems()
     local kids = safeAttr(el, "AXChildren")
     if kids then for _, ch in ipairs(kids) do traverse(ch, depth + 1) end end
   end
+
   traverse(container, 0)
   return found
 end
@@ -271,23 +275,28 @@ end
 -- ---------- state ----------
 local state = {
   active = false,
-  tips   = {},
-  items  = {},
-  tap    = nil,
+  tips = {},
+  items = {},
+  tap = nil,
   context = "none",
+  checkTimer = nil,
 }
-local masterEnabled = true  -- always on unless hardStopped
+local masterEnabled = true -- always on unless hardStopped
 
 local excelMonitor = nil
-local appWatcher   = nil
+local appWatcher = nil
 local excelCheckTimer = nil
 local bStartTap = nil
 local bStartTimer = nil
 local oStartTap = nil
 local oStartTimer = nil
-local fStartTap = nil      
-local fStartTimer = nil   
-local hardStopped = false  -- requires HS reload once set
+local fStartTap = nil
+local fStartTimer = nil
+local toggleTap = nil
+local hardStopped = false -- requires HS reload once set
+
+local optionTap = nil
+local optionIsDown = false
 
 -- ---------- visuals ----------
 local function clearTips()
@@ -297,13 +306,14 @@ local function clearTips()
   state.tips = {}
   state.items = {}
   if state.tap then state.tap:stop(); state.tap = nil end
+  if state.checkTimer then state.checkTimer:stop(); state.checkTimer = nil end
   state.active = false
   state.context = "none"
 end
 
 -- Center the pill within the menu item's row (both horizontally and vertically).
 local function showTip(letter, frame)
-  local w, h = 22, 18
+  local w, h = 24, 20
   local x = frame.x + math.floor((frame.w - w) / 2)
   local y = frame.y + math.max(0, math.floor((frame.h - h) / 2))
 
@@ -316,12 +326,12 @@ local function showTip(letter, frame)
   local c = canvas.new({ x = x, y = y, w = w, h = h })
   c:appendElements(
     { type = "rectangle", action = "fill",
-      roundedRectRadii = { xRadius = 4, yRadius = 4 },
-      fillColor = { red = 0.33, green = 0.33, blue = 0.33, alpha = 1 }, -- Grey (box around number)
+      roundedRectRadii = { xRadius = 6, yRadius = 6 },
+      fillColor = { red = 0.28, green = 0.28, blue = 0.30, alpha = 1 },
       strokeColor = { white = 0, alpha = 0 }, strokeWidth = 0 },
-    { type = "text", text = letter, textSize = 12,
-      textColor = { red = 1, green = 1, blue = 1, alpha = 1 }, -- White (actual numbers)
-      frame = { x = 0, y = 1, w = w, h = h },  -- perfectly centered
+    { type = "text", text = letter, textSize = 13,
+      textColor = { red = 1, green = 1, blue = 1, alpha = 1 },
+      frame = { x = 0, y = 0, w = w, h = h },
       textAlignment = "center" }
   )
   c:level(canvas.windowLevels.overlay)
@@ -360,14 +370,6 @@ local function activateKeytips()
     local char = ev:getCharacters()
     if not char or char == "" then return true end
     local letter = string.upper(char)
-    -- Esc cancels
-    if ev:getKeyCode() == 53 then
-      clearTips()
-      timer.doAfter(0.15, function()
-        if not hardStopped and masterEnabled then activateKeytips() end
-      end)
-      return true
-    end
     local target = state.items[letter]
     if target and target.el then
       pcall(function() target.el:performAction("AXPress") end)
@@ -377,6 +379,7 @@ local function activateKeytips()
       end)
       return true
     end
+    -- Any other key hides tips briefly; only reactivates if still enabled.
     clearTips()
     timer.doAfter(0.12, function()
       if not hardStopped and masterEnabled then activateKeytips() end
@@ -385,6 +388,21 @@ local function activateKeytips()
   end)
   state.active = true
   state.tap:start()
+
+  state.checkTimer = timer.doEvery(0.05, function()
+    local container
+    if state.context == "borders" then
+      container = findMenuContainerForMap(LETTER_MAP_BORDERS)
+    elseif state.context == "format" then
+      container = findMenuContainerForMap(LETTER_MAP_FORMAT)
+    elseif state.context == "freeze" then
+      container = findFreezeMenuContainer()
+    end
+    if not container then
+      clearTips()
+    end
+  end)
+  state.checkTimer:start()
 end
 
 -- Non-consuming triggers: 'B' (Borders), 'O' (Format), 'F' (Freeze)
@@ -453,6 +471,8 @@ local function teardownAndDisable()
   if bStartTap then bStartTap:stop(); bStartTap = nil end
   if oStartTap then oStartTap:stop(); oStartTap = nil end
   if fStartTap then fStartTap:stop(); fStartTap = nil end
+  if toggleTap then toggleTap:stop(); toggleTap = nil end
+  if optionTap then optionTap:stop(); optionTap = nil end
   if excelCheckTimer then excelCheckTimer:stop(); excelCheckTimer = nil end
   if bStartTimer then bStartTimer:stop(); bStartTimer = nil end
   if oStartTimer then oStartTimer:stop(); oStartTimer = nil end
@@ -479,3 +499,43 @@ appWatcher = app.watcher.new(function(appName, eventType, appObj)
   end
 end)
 appWatcher:start()
+
+toggleTap = eventtap.new({ eventtap.event.types.keyDown }, function(ev)
+  if hardStopped then return false end
+  local kc = ev:getKeyCode()
+  if kc ~= 53 then return false end -- ESC only
+  if not isExcelFrontmost() or not excelRunning() then return false end
+  if not state.active then return false end -- Only consume ESC when tips are shown
+  -- One-shot OFF: hide and keep disabled until Option pressed again
+  masterEnabled = false
+  clearTips()
+  return true
+end)
+toggleTap:start()
+
+optionTap = eventtap.new({ eventtap.event.types.flagsChanged }, function(ev)
+  if hardStopped then return false end
+  if not isExcelFrontmost() or not excelRunning() then return false end
+
+  local flags = ev:getFlags()
+  local nowDown = flags.alt or flags.altgr
+
+  if nowDown ~= optionIsDown then
+    optionIsDown = nowDown
+    if nowDown then
+      -- Only process Option toggle when tips are shown OR when disabled by ESC
+      if state.active or not masterEnabled then
+        if masterEnabled then
+          masterEnabled = false
+          clearTips()
+        else
+          masterEnabled = true
+          activateKeytips()
+        end
+        return true
+      end
+    end
+  end
+  return false
+end)
+optionTap:start()
