@@ -292,7 +292,6 @@ local oStartTap = nil
 local oStartTimer = nil
 local fStartTap = nil
 local fStartTimer = nil
-local toggleTap = nil
 local hardStopped = false -- requires HS reload once set
 
 local optionTap = nil
@@ -379,7 +378,7 @@ local function activateKeytips()
       end)
       return true
     end
-    -- Any other key hides tips briefly; only reactivates if still enabled.
+    -- Any other key hides tips briefly.
     clearTips()
     timer.doAfter(0.12, function()
       if not hardStopped and masterEnabled then activateKeytips() end
@@ -411,7 +410,7 @@ bStartTap = eventtap.new({ eventtap.event.types.keyDown }, function(ev)
   if not isExcelFrontmost() or not excelRunning() then return false end
   if ev:getKeyCode() ~= keycodes.map["b"] then return false end
   if bStartTimer then bStartTimer:stop(); bStartTimer = nil end
-  bStartTimer = timer.doAfter(0.08, function()
+  bStartTimer = timer.doAfter(0.01, function()
     bStartTimer = nil
     if not hardStopped and masterEnabled then activateKeytips() end
   end)
@@ -424,7 +423,7 @@ oStartTap = eventtap.new({ eventtap.event.types.keyDown }, function(ev)
   if not isExcelFrontmost() or not excelRunning() then return false end
   if ev:getKeyCode() ~= keycodes.map["o"] then return false end
   if oStartTimer then oStartTimer:stop(); oStartTimer = nil end
-  oStartTimer = timer.doAfter(0.08, function()
+  oStartTimer = timer.doAfter(0.01, function()
     oStartTimer = nil
     if not hardStopped and masterEnabled then activateKeytips() end
   end)
@@ -437,7 +436,7 @@ fStartTap = eventtap.new({ eventtap.event.types.keyDown }, function(ev)
   if not isExcelFrontmost() or not excelRunning() then return false end
   if ev:getKeyCode() ~= keycodes.map["f"] then return false end
   if fStartTimer then fStartTimer:stop(); fStartTimer = nil end
-  fStartTimer = timer.doAfter(0.08, function()
+  fStartTimer = timer.doAfter(0.01, function()
     fStartTimer = nil
     if not hardStopped and masterEnabled then activateKeytips() end
   end)
@@ -452,7 +451,7 @@ excelMonitor = eventtap.new(
     if hardStopped or not masterEnabled then return false end
     if isExcelFrontmost() and excelRunning() then
       if excelCheckTimer then excelCheckTimer:stop() end
-      excelCheckTimer = timer.doAfter(0.05, function()
+      excelCheckTimer = timer.doAfter(0.02, function()
         excelCheckTimer = nil
         if not hardStopped and masterEnabled then activateKeytips() end
       end)
@@ -461,7 +460,7 @@ excelMonitor = eventtap.new(
   end
 )
 
--- Helper: full teardown and DISABLE (no app quit; requires HS reload)
+-- Helper: full teardown and DISABLE (requires HS reload)
 local function teardownAndDisable()
   if hardStopped then return end
   hardStopped = true
@@ -471,7 +470,6 @@ local function teardownAndDisable()
   if bStartTap then bStartTap:stop(); bStartTap = nil end
   if oStartTap then oStartTap:stop(); oStartTap = nil end
   if fStartTap then fStartTap:stop(); fStartTap = nil end
-  if toggleTap then toggleTap:stop(); toggleTap = nil end
   if optionTap then optionTap:stop(); optionTap = nil end
   if excelCheckTimer then excelCheckTimer:stop(); excelCheckTimer = nil end
   if bStartTimer then bStartTimer:stop(); bStartTimer = nil end
@@ -500,19 +498,6 @@ appWatcher = app.watcher.new(function(appName, eventType, appObj)
 end)
 appWatcher:start()
 
-toggleTap = eventtap.new({ eventtap.event.types.keyDown }, function(ev)
-  if hardStopped then return false end
-  local kc = ev:getKeyCode()
-  if kc ~= 53 then return false end -- ESC only
-  if not isExcelFrontmost() or not excelRunning() then return false end
-  if not state.active then return false end -- Only consume ESC when tips are shown
-  -- One-shot OFF: hide and keep disabled until Option pressed again
-  masterEnabled = false
-  clearTips()
-  return true
-end)
-toggleTap:start()
-
 optionTap = eventtap.new({ eventtap.event.types.flagsChanged }, function(ev)
   if hardStopped then return false end
   if not isExcelFrontmost() or not excelRunning() then return false end
@@ -523,7 +508,7 @@ optionTap = eventtap.new({ eventtap.event.types.flagsChanged }, function(ev)
   if nowDown ~= optionIsDown then
     optionIsDown = nowDown
     if nowDown then
-      -- Only process Option toggle when tips are shown OR when disabled by ESC
+      -- Only process Option toggle when tips are shown OR when previously disabled
       if state.active or not masterEnabled then
         if masterEnabled then
           masterEnabled = false
