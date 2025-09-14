@@ -331,7 +331,7 @@ local function showTip(letter, frame)
       strokeColor = { white = 0, alpha = 0 }, strokeWidth = 0 },
     { type = "text", text = letter, textSize = 13,
       textColor = { red = 1, green = 1, blue = 1, alpha = 1 },
-      frame = { x = 0, y = 0, w = w, h = h },
+      frame = { x = 0, y = 1, w = w, h = h },
       textAlignment = "center" }
   )
   c:level(canvas.windowLevels.overlay)
@@ -452,7 +452,7 @@ excelMonitor = eventtap.new(
     if hardStopped or not masterEnabled then return false end
     if isExcelFrontmost() and excelRunning() then
       if excelCheckTimer then excelCheckTimer:stop() end
-      excelCheckTimer = timer.doAfter(0.35, function()
+      excelCheckTimer = timer.doAfter(0.05, function()
         excelCheckTimer = nil
         if not hardStopped and masterEnabled then activateKeytips() end
       end)
