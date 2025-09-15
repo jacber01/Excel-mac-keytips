@@ -298,6 +298,10 @@ local oStartTap = nil
 local oStartTimer = nil
 local fStartTap = nil
 local fStartTimer = nil
+local clickHideTap = nil
+local mouseDetectTimer = nil
+local suppressAutoFromMouse = false
+local suppressAutoFromOption = false
 local toggleTap = nil
 local hardStopped = false -- requires HS reload once set
 
@@ -337,7 +341,7 @@ local function showTip(letter, frame)
       strokeColor = { white = 0, alpha = 0 }, strokeWidth = 0 },
     { type = "text", text = letter, textSize = 13,
       textColor = { red = 1, green = 1, blue = 1, alpha = 1 },
-      frame = { x = 0, y = 0, w = w, h = h },
+      frame = { x = 0, y = 1, w = w, h = h },
       textAlignment = "center" }
   )
   c:level(canvas.windowLevels.overlay)
@@ -451,15 +455,47 @@ fStartTap = eventtap.new({ eventtap.event.types.keyDown }, function(ev)
 end)
 fStartTap:start()
 
+-- Mouse: instant hide on click + detect mouse-opened menus to suppress auto custom tips
+clickHideTap = eventtap.new({ eventtap.event.types.leftMouseDown }, function()
+  if hardStopped then return false end
+  if not isExcelFrontmost() or not excelRunning() then return false end
+
+  -- Smooth hide if tips are visible
+  if state.active and state.context ~= "none" then
+    clearTips()
+    timer.doAfter(0.12, function()
+      if not hardStopped and masterEnabled then activateKeytips() end
+    end)
+  end
+
+  -- Detect if this click opened a dropdown (Borders/Format/Freeze); suppress auto custom tips
+  if mouseDetectTimer then mouseDetectTimer:stop(); mouseDetectTimer = nil end
+  mouseDetectTimer = timer.doAfter(0.12, function()
+    local opened = findMenuContainerForMap(LETTER_MAP_BORDERS)
+                  or findMenuContainerForMap(LETTER_MAP_FORMAT)
+                  or findFreezeMenuContainer()
+    if opened then suppressAutoFromMouse = true end
+  end)
+
+  return false
+end)
+clickHideTap:start()
+
 -- Excel activity monitor with debouncing
 excelMonitor = eventtap.new(
   { eventtap.event.types.keyDown, eventtap.event.types.leftMouseUp },
   function(ev)
     if hardStopped or not masterEnabled then return false end
     if isExcelFrontmost() and excelRunning() then
+      -- Clear Option-suppression as soon as user starts typing sequence (e.g., H then B)
+      if ev:getType() == eventtap.event.types.keyDown and suppressAutoFromOption then
+        suppressAutoFromOption = false
+      end
       if excelCheckTimer then excelCheckTimer:stop() end
       excelCheckTimer = timer.doAfter(0.35, function()
         excelCheckTimer = nil
+        -- Skip auto-activation if a menu was opened by mouse or we're in "restart native" mode
+        if suppressAutoFromMouse or suppressAutoFromOption then return end
         if not hardStopped and masterEnabled then activateKeytips() end
       end)
     end
@@ -477,6 +513,8 @@ local function teardownAndDisable()
   if bStartTap then bStartTap:stop(); bStartTap = nil end
   if oStartTap then oStartTap:stop(); oStartTap = nil end
   if fStartTap then fStartTap:stop(); fStartTap = nil end
+  if clickHideTap then clickHideTap:stop(); clickHideTap = nil end
+  if mouseDetectTimer then mouseDetectTimer:stop(); mouseDetectTimer = nil end
   if toggleTap then toggleTap:stop(); toggleTap = nil end
   if optionTap then optionTap:stop(); optionTap = nil end
   if excelCheckTimer then excelCheckTimer:stop(); excelCheckTimer = nil end
@@ -532,13 +570,27 @@ optionTap = eventtap.new({ eventtap.event.types.flagsChanged }, function(ev)
       -- Only process Option toggle when tips are shown OR when disabled by ESC
       if state.active or not masterEnabled then
         if masterEnabled then
+          -- Custom tips are up: hide them and CONSUME Option so native doesn't appear on this press
           masterEnabled = false
           clearTips()
+          suppressAutoFromOption = false  -- not in restart yet
+          return true
         else
+          -- Re-enable but DO NOT auto-show custom tips; pass Option through so Excel shows native
           masterEnabled = true
-          activateKeytips()
+          suppressAutoFromMouse = false   -- allow native to appear even if menu was mouse-opened
+          suppressAutoFromOption = true   -- defer custom auto-activation until user starts typing (H/B)
+
+          -- NEW: if a dropdown is open, close it first so native KeyTips can appear immediately
+          local opened = findMenuContainerForMap(LETTER_MAP_BORDERS)
+                        or findMenuContainerForMap(LETTER_MAP_FORMAT)
+                        or findFreezeMenuContainer()
+          if opened then
+            eventtap.keyStroke({}, "escape", 0) -- close dropdown before Option reaches Excel
+          end
+
+          return false                    -- do not consume; let native KeyTips appear
         end
-        return true
       end
     end
   end
