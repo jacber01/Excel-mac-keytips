@@ -739,7 +739,7 @@ optionTap = eventtap.new({ eventtap.event.types.flagsChanged }, function(ev)
           if opened then
             eventtap.keyStroke({}, "escape", 0)
           end
-          return false -- let Option reach Excel (native KeyTips)
+          return false 
         end
       end
     end
