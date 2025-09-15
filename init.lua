@@ -341,7 +341,7 @@ local function showTip(letter, frame)
       strokeColor = { white = 0, alpha = 0 }, strokeWidth = 0 },
     { type = "text", text = letter, textSize = 13,
       textColor = { red = 1, green = 1, blue = 1, alpha = 1 },
-      frame = { x = 0, y = 1, w = w, h = h },
+      frame = { x = 0, y = 2, w = w, h = h },
       textAlignment = "center" }
   )
   c:level(canvas.windowLevels.overlay)
