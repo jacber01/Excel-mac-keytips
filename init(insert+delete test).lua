@@ -49,7 +49,7 @@ R = { "Freeze Top Row" },
 C = { "Freeze First Column" },
 }
 
--- Insert
+-- Insert (Home > Cells > Insert ▼)
 local LETTER_MAP_INSERT = {
 I = { "Insert Cells" },
 R = { "Insert Sheet Rows" },
@@ -57,7 +57,7 @@ C = { "Insert Sheet Columns" },
 S = { "Insert Sheet" },
 }
 
--- Delete 
+-- Delete (Home > Cells > Delete ▼)
 local LETTER_MAP_DELETE = {
 D = { "Delete Cells" },
 R = { "Delete Sheet Rows" },
@@ -444,7 +444,7 @@ local function showTip(letter, frame)
       strokeColor = { white = 0, alpha = 0 }, strokeWidth = 0 },
     { type = "text", text = letter, textSize = 13,
       textColor = { red = 1, green = 1, blue = 1, alpha = 1 },
-      frame = { x = 0, y = 1, w = w, h = h },
+      frame = { x = 0, y = 0, w = w, h = h },
       textAlignment = "center" }
   )
   c:level(canvas.windowLevels.overlay)
@@ -621,6 +621,8 @@ mouseOpenTap = eventtap.new({ eventtap.event.types.leftMouseDown }, function()
     local opened = findMenuContainerForMap(LETTER_MAP_BORDERS)
                 or findMenuContainerForMap(LETTER_MAP_FORMAT)
                 or findFreezeMenuContainer()
+                or findInsertMenuContainer()
+                or findMenuContainerForMap(LETTER_MAP_DELETE)
     if opened then suppressAutoFromMouse = true end
   end)
   return false
@@ -732,6 +734,8 @@ optionTap = eventtap.new({ eventtap.event.types.flagsChanged }, function(ev)
           local opened = findMenuContainerForMap(LETTER_MAP_BORDERS)
                       or findMenuContainerForMap(LETTER_MAP_FORMAT)
                       or findFreezeMenuContainer()
+                      or findInsertMenuContainer()
+                      or findMenuContainerForMap(LETTER_MAP_DELETE)
           if opened then
             eventtap.keyStroke({}, "escape", 0)
           end
