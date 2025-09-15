@@ -49,7 +49,7 @@ R = { "Freeze Top Row" },
 C = { "Freeze First Column" },
 }
 
--- Insert (Home > Cells > Insert ▼)
+-- Insert
 local LETTER_MAP_INSERT = {
 I = { "Insert Cells" },
 R = { "Insert Sheet Rows" },
@@ -57,7 +57,7 @@ C = { "Insert Sheet Columns" },
 S = { "Insert Sheet" },
 }
 
--- Delete (Home > Cells > Delete ▼)
+-- Delete
 local LETTER_MAP_DELETE = {
 D = { "Delete Cells" },
 R = { "Delete Sheet Rows" },
