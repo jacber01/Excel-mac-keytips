@@ -49,7 +49,7 @@ R = { "Freeze Top Row" },
 C = { "Freeze First Column" },
 }
 
--- Insert (Home > Cells > Insert ▼)
+-- Insert
 local LETTER_MAP_INSERT = {
 I = { "Insert Cells" },
 R = { "Insert Sheet Rows" },
@@ -57,7 +57,7 @@ C = { "Insert Sheet Columns" },
 S = { "Insert Sheet" },
 }
 
--- Delete (Home > Cells > Delete ▼)
+-- Delete 
 local LETTER_MAP_DELETE = {
 D = { "Delete Cells" },
 R = { "Delete Sheet Rows" },
@@ -401,6 +401,10 @@ local iStartTimer = nil
 local dStartTap = nil
 local dStartTimer = nil
 local clickHideTap = nil
+local mouseOpenTap = nil
+local mouseDetectTimer = nil
+local suppressAutoFromMouse = false
+local suppressAutoFromOption = false
 local toggleTap = nil
 local hardStopped = false -- requires HS reload once set
 
@@ -440,7 +444,7 @@ local function showTip(letter, frame)
       strokeColor = { white = 0, alpha = 0 }, strokeWidth = 0 },
     { type = "text", text = letter, textSize = 13,
       textColor = { red = 1, green = 1, blue = 1, alpha = 1 },
-      frame = { x = 0, y = 0, w = w, h = h },
+      frame = { x = 0, y = 1, w = w, h = h },
       textAlignment = "center" }
   )
   c:level(canvas.windowLevels.overlay)
@@ -608,15 +612,36 @@ dStartTap = eventtap.new({ eventtap.event.types.keyDown }, function(ev)
 end)
 dStartTap:start()
 
+-- Global mouse listener to detect mouse-opened dropdowns and suppress auto custom tips
+mouseOpenTap = eventtap.new({ eventtap.event.types.leftMouseDown }, function()
+  if hardStopped then return false end
+  if not isExcelFrontmost() or not excelRunning() then return false end
+  if mouseDetectTimer then mouseDetectTimer:stop(); mouseDetectTimer = nil end
+  mouseDetectTimer = timer.doAfter(0.12, function()
+    local opened = findMenuContainerForMap(LETTER_MAP_BORDERS)
+                or findMenuContainerForMap(LETTER_MAP_FORMAT)
+                or findFreezeMenuContainer()
+    if opened then suppressAutoFromMouse = true end
+  end)
+  return false
+end)
+mouseOpenTap:start()
+
 -- Excel activity monitor with debouncing
 excelMonitor = eventtap.new(
   { eventtap.event.types.keyDown, eventtap.event.types.leftMouseUp },
   function(ev)
     if hardStopped or not masterEnabled then return false end
     if isExcelFrontmost() and excelRunning() then
+      -- If we're in "restart native" mode, clear it once user starts keying the sequence.
+      if ev:getType() == eventtap.event.types.keyDown and suppressAutoFromOption then
+        suppressAutoFromOption = false
+      end
       if excelCheckTimer then excelCheckTimer:stop() end
       excelCheckTimer = timer.doAfter(0.35, function()
         excelCheckTimer = nil
+        -- Suppress our auto-appearance after mouse-open or while restarting native.
+        if suppressAutoFromMouse or suppressAutoFromOption then return end
         if not hardStopped and masterEnabled then activateKeytips() end
       end)
     end
@@ -637,6 +662,8 @@ local function teardownAndDisable()
   if iStartTap then iStartTap:stop(); iStartTap = nil end
   if dStartTap then dStartTap:stop(); dStartTap = nil end
   if clickHideTap then clickHideTap:stop(); clickHideTap = nil end
+  if mouseOpenTap then mouseOpenTap:stop(); mouseOpenTap = nil end
+  if mouseDetectTimer then mouseDetectTimer:stop(); mouseDetectTimer = nil end
   if toggleTap then toggleTap:stop(); toggleTap = nil end
   if optionTap then optionTap:stop(); optionTap = nil end
   if excelCheckTimer then excelCheckTimer:stop(); excelCheckTimer = nil end
@@ -692,13 +719,24 @@ optionTap = eventtap.new({ eventtap.event.types.flagsChanged }, function(ev)
     if nowDown then
       if state.active or not masterEnabled then
         if masterEnabled then
+          -- Custom tips visible: hide them and CONSUME Option
           masterEnabled = false
           clearTips()
+          suppressAutoFromOption = false
+          return true
         else
+          -- Re-enable: pass Option through so native KeyTips appear; close any open dropdown first
           masterEnabled = true
-          activateKeytips()
+          suppressAutoFromMouse = false
+          suppressAutoFromOption = true
+          local opened = findMenuContainerForMap(LETTER_MAP_BORDERS)
+                      or findMenuContainerForMap(LETTER_MAP_FORMAT)
+                      or findFreezeMenuContainer()
+          if opened then
+            eventtap.keyStroke({}, "escape", 0)
+          end
+          return false -- let Option reach Excel (native KeyTips)
         end
-        return true
       end
     end
   end
