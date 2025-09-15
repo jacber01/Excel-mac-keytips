@@ -581,15 +581,15 @@ optionTap = eventtap.new({ eventtap.event.types.flagsChanged }, function(ev)
           suppressAutoFromMouse = false   -- allow native to appear even if menu was mouse-opened
           suppressAutoFromOption = true   -- defer custom auto-activation until user starts typing (H/B)
 
-          -- NEW: if a dropdown is open, close it first so native KeyTips can appear immediately
+          -- if a dropdown is open, close it first so native KeyTips can appear immediately
           local opened = findMenuContainerForMap(LETTER_MAP_BORDERS)
                         or findMenuContainerForMap(LETTER_MAP_FORMAT)
                         or findFreezeMenuContainer()
           if opened then
-            eventtap.keyStroke({}, "escape", 0) -- close dropdown before Option reaches Excel
+            eventtap.keyStroke({}, "escape", 0) -
           end
 
-          return false                    -- do not consume; let native KeyTips appear
+          return false                   
         end
       end
     end
