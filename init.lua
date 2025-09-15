@@ -30,6 +30,7 @@ I = { "AutoFit Column Width" },
 D = { "Default Width" },
 R = { "Rename Sheet" },
 M = { "Move or Copy Sheet" },
+T = { "Tab Color" },
 P = { "Protect Sheet" },
 L = { "Lock Cell" },
 F = { "Format Cells" },
@@ -291,6 +292,7 @@ local oStartTap = nil
 local oStartTimer = nil
 local fStartTap = nil
 local fStartTimer = nil
+local toggleTap = nil
 local hardStopped = false -- requires HS reload once set
 
 local optionTap = nil
@@ -329,7 +331,7 @@ local function showTip(letter, frame)
       strokeColor = { white = 0, alpha = 0 }, strokeWidth = 0 },
     { type = "text", text = letter, textSize = 13,
       textColor = { red = 1, green = 1, blue = 1, alpha = 1 },
-      frame = { x = 0, y = 1, w = w, h = h },
+      frame = { x = 0, y = 0, w = w, h = h },
       textAlignment = "center" }
   )
   c:level(canvas.windowLevels.overlay)
@@ -372,14 +374,14 @@ local function activateKeytips()
     if target and target.el then
       pcall(function() target.el:performAction("AXPress") end)
       clearTips()
-      timer.doAfter(0.01, function()
+      timer.doAfter(0.12, function()
         if not hardStopped and masterEnabled then activateKeytips() end
       end)
       return true
     end
-    -- Any other key hides tips briefly.
+    -- Any other key hides tips briefly; only reactivates if still enabled.
     clearTips()
-    timer.doAfter(0.01, function()
+    timer.doAfter(0.12, function()
       if not hardStopped and masterEnabled then activateKeytips() end
     end)
     return true
@@ -409,7 +411,7 @@ bStartTap = eventtap.new({ eventtap.event.types.keyDown }, function(ev)
   if not isExcelFrontmost() or not excelRunning() then return false end
   if ev:getKeyCode() ~= keycodes.map["b"] then return false end
   if bStartTimer then bStartTimer:stop(); bStartTimer = nil end
-  bStartTimer = timer.doAfter(0.01, function()
+  bStartTimer = timer.doAfter(0.08, function()
     bStartTimer = nil
     if not hardStopped and masterEnabled then activateKeytips() end
   end)
@@ -422,7 +424,7 @@ oStartTap = eventtap.new({ eventtap.event.types.keyDown }, function(ev)
   if not isExcelFrontmost() or not excelRunning() then return false end
   if ev:getKeyCode() ~= keycodes.map["o"] then return false end
   if oStartTimer then oStartTimer:stop(); oStartTimer = nil end
-  oStartTimer = timer.doAfter(0.01, function()
+  oStartTimer = timer.doAfter(0.08, function()
     oStartTimer = nil
     if not hardStopped and masterEnabled then activateKeytips() end
   end)
@@ -435,7 +437,7 @@ fStartTap = eventtap.new({ eventtap.event.types.keyDown }, function(ev)
   if not isExcelFrontmost() or not excelRunning() then return false end
   if ev:getKeyCode() ~= keycodes.map["f"] then return false end
   if fStartTimer then fStartTimer:stop(); fStartTimer = nil end
-  fStartTimer = timer.doAfter(0.01, function()
+  fStartTimer = timer.doAfter(0.08, function()
     fStartTimer = nil
     if not hardStopped and masterEnabled then activateKeytips() end
   end)
@@ -450,7 +452,7 @@ excelMonitor = eventtap.new(
     if hardStopped or not masterEnabled then return false end
     if isExcelFrontmost() and excelRunning() then
       if excelCheckTimer then excelCheckTimer:stop() end
-      excelCheckTimer = timer.doAfter(0.02, function()
+      excelCheckTimer = timer.doAfter(0.35, function()
         excelCheckTimer = nil
         if not hardStopped and masterEnabled then activateKeytips() end
       end)
@@ -459,7 +461,7 @@ excelMonitor = eventtap.new(
   end
 )
 
--- Helper: full teardown and DISABLE (requires HS reload)
+-- Helper: full teardown and DISABLE (no app quit; requires HS reload)
 local function teardownAndDisable()
   if hardStopped then return end
   hardStopped = true
@@ -469,6 +471,7 @@ local function teardownAndDisable()
   if bStartTap then bStartTap:stop(); bStartTap = nil end
   if oStartTap then oStartTap:stop(); oStartTap = nil end
   if fStartTap then fStartTap:stop(); fStartTap = nil end
+  if toggleTap then toggleTap:stop(); toggleTap = nil end
   if optionTap then optionTap:stop(); optionTap = nil end
   if excelCheckTimer then excelCheckTimer:stop(); excelCheckTimer = nil end
   if bStartTimer then bStartTimer:stop(); bStartTimer = nil end
@@ -497,6 +500,19 @@ appWatcher = app.watcher.new(function(appName, eventType, appObj)
 end)
 appWatcher:start()
 
+toggleTap = eventtap.new({ eventtap.event.types.keyDown }, function(ev)
+  if hardStopped then return false end
+  local kc = ev:getKeyCode()
+  if kc ~= 53 then return false end -- ESC only
+  if not isExcelFrontmost() or not excelRunning() then return false end
+  if not state.active then return false end -- Only consume ESC when tips are shown
+  -- One-shot OFF: hide and keep disabled until Option pressed again
+  masterEnabled = false
+  clearTips()
+  return true
+end)
+toggleTap:start()
+
 optionTap = eventtap.new({ eventtap.event.types.flagsChanged }, function(ev)
   if hardStopped then return false end
   if not isExcelFrontmost() or not excelRunning() then return false end
@@ -507,7 +523,7 @@ optionTap = eventtap.new({ eventtap.event.types.flagsChanged }, function(ev)
   if nowDown ~= optionIsDown then
     optionIsDown = nowDown
     if nowDown then
-      -- Only process Option toggle when tips are shown OR when previously disabled
+      -- Only process Option toggle when tips are shown OR when disabled by ESC
       if state.active or not masterEnabled then
         if masterEnabled then
           masterEnabled = false
