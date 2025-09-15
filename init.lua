@@ -30,7 +30,6 @@ I = { "AutoFit Column Width" },
 D = { "Default Width" },
 R = { "Rename Sheet" },
 M = { "Move or Copy Sheet" },
-T = { "Tab Color" },
 P = { "Protect Sheet" },
 L = { "Lock Cell" },
 F = { "Format Cells" },
@@ -373,14 +372,14 @@ local function activateKeytips()
     if target and target.el then
       pcall(function() target.el:performAction("AXPress") end)
       clearTips()
-      timer.doAfter(0.12, function()
+      timer.doAfter(0.01, function()
         if not hardStopped and masterEnabled then activateKeytips() end
       end)
       return true
     end
     -- Any other key hides tips briefly.
     clearTips()
-    timer.doAfter(0.12, function()
+    timer.doAfter(0.01, function()
       if not hardStopped and masterEnabled then activateKeytips() end
     end)
     return true
