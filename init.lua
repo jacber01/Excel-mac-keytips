@@ -19,6 +19,13 @@ A = { "All Borders" },
 O = { "Outside Borders" },
 H = { "Thick Box Border" },
 M = { "More Borders" },
+D = { "Bottom Double Border" },
+K = { "Thick Bottom Border" },
+P = { "Top and Bottom Border" },
+U = { "Top and Thick Bottom Border" },
+E = { "Top and Double Bottom Border" },
+G = { "Draw Border Grid" },
+S = { "Erase Border" },
 }
 
 -- Format
