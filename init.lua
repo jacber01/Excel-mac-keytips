@@ -337,7 +337,7 @@ local function showTip(letter, frame)
   c:appendElements(
     { type = "rectangle", action = "fill",
       roundedRectRadii = { xRadius = 6, yRadius = 6 },
-      fillColor = { red = 0.28, green = 0.28, blue = 0.30, alpha = 1 },
+      fillColor = { red = 0.478, green = 0.478, blue = 0.478, alpha = 1 },
       strokeColor = { white = 0, alpha = 0 }, strokeWidth = 0 },
     { type = "text", text = letter, textSize = 13,
       textColor = { red = 1, green = 1, blue = 1, alpha = 1 },
