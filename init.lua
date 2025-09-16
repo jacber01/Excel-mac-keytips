@@ -586,7 +586,7 @@ optionTap = eventtap.new({ eventtap.event.types.flagsChanged }, function(ev)
                         or findMenuContainerForMap(LETTER_MAP_FORMAT)
                         or findFreezeMenuContainer()
           if opened then
-            eventtap.keyStroke({}, "escape", 0) -
+            eventtap.keyStroke({}, "escape", 0)
           end
 
           return false                   
