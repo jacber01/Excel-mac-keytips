@@ -20,10 +20,14 @@ It overlays clean visual labels for the **Borders**, **Format**, and **Freeze** 
    - `Option→H→B` → Borders (with custom KeyTips)
    - `Option→H→O` → Format (with custom KeyTips)
    - `Option→W→F` → Freeze (with custom KeyTips)
+   - `Option→H→I` → Insert (with custom KeyTips)
+   - `Option→H→D` → Delete (with custom KeyTips)
 
 ## Notes
 - Designed for Microsoft Excel 365/2024 on macOS.
 - Minor Excel updates should not affect functionality.
+- You have to enable Keytips in Preferences→Accessibility
+- You have to set your excel to English
 
 ## License
 MIT License
