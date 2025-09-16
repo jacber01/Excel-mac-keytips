@@ -23,8 +23,8 @@ It overlays clean visual labels for the **Borders**, **Format**, and **Freeze** 
 ## Notes
 - Designed for Microsoft Excel 365/2024 on macOS.
 - Minor Excel updates should not affect functionality.
-- An experimental version (init(insert+delete test).lua) adds insert and delete shortcuts.
-- Performance on the test version may be laggy; use at your own risk. To try it, rename the file to init.lua and place it in the same directory.
+- An experimental version; init(insert+delete test).lua adds insert and delete shortcuts.
+- To try the test version, rename the file to init.lua and place it in the same directory.
 
 ## License
 MIT License
