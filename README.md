@@ -10,6 +10,7 @@ It overlays clean visual labels for the **Borders**, **Format**, and **Freeze** 
 - Always-on with automatic re-arming.
 - Efficient and lightweight, safe to keep running in the background.
 - Emergency self-disabling if Excel quits unexpectedly.
+- NEW: Added support for the insert and delete menus. 
 
 ## Usage
 1. Install [Hammerspoon](https://www.hammerspoon.org/).
@@ -23,8 +24,6 @@ It overlays clean visual labels for the **Borders**, **Format**, and **Freeze** 
 ## Notes
 - Designed for Microsoft Excel 365/2024 on macOS.
 - Minor Excel updates should not affect functionality.
-- An experimental version; init(insert+delete test).lua adds insert and delete shortcuts.
-- To try the test version, rename the file to init.lua and place it in the same directory.
 
 ## License
 MIT License
