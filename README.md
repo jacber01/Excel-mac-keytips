@@ -1,7 +1,7 @@
 # Excel Mac KeyTips (Hammerspoon)
 
 This project brings Windows-style **KeyTips** to Microsoft Excel on macOS using [Hammerspoon](https://www.hammerspoon.org/).  
-It overlays clean visual labels for the **Borders**, **Format**, and **Freeze** dropdown menus and allows activating options directly from the keyboard.
+It overlays clean visual labels for the **Borders**, **Format**, **Freeze**, **Insert** and **Delete** dropdown menus and allows activating options directly from the keyboard.
 
 ## Features
 - Custom visual KeyTips for Excel menus (`Borders`, `Format`, `Freeze`,`Insert`, `Delete`).
