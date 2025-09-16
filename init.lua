@@ -241,7 +241,7 @@ local function findContainerOptimized(letterMap, minButtons)
   return nil
 end
 
--- Optimized container finders
+-- Container finders
 local function findMenuContainerForMap(letterMap)
   return findContainerOptimized(letterMap, 5)
 end
@@ -254,7 +254,7 @@ local function findInsertMenuContainer()
   return findContainerOptimized(LETTER_MAP_INSERT, 4)
 end
 
--- ---------- Optimized item collection ----------
+-- ---------- Item collection ----------
 local function collectItemsOptimized(container, letterMap)
   if not container then return {} end
   
@@ -332,7 +332,7 @@ local function activateKeytips()
   
   clearTips()
   
-  -- Priority order with optimized detection
+  -- Priority order with detection
   local contexts = {
     { name = "borders", map = LETTER_MAP_BORDERS, finder = findMenuContainerForMap },
     { name = "format", map = LETTER_MAP_FORMAT, finder = findMenuContainerForMap },
@@ -388,7 +388,7 @@ local function activateKeytips()
   state.tap:start()
 
   -- Validation timer with longer interval
-  state.checkTimer = timer.doEvery(0.1, function() -- Increased from 0.05
+  state.checkTimer = timer.doEvery(0.1, function() 
     local currentContainer
     if state.context == "borders" then
       currentContainer = findMenuContainerForMap(LETTER_MAP_BORDERS)
