@@ -44,7 +44,6 @@ local state = {
   tap             = nil,
   context         = "none",
   checkTimer      = nil,
-  isActivating    = false,
 }
 local masterEnabled = true
 local hardStopped = false
@@ -140,6 +139,15 @@ local function anyLabelMatches(letterMap, lbl)
   return false
 end
 
+local function anyContextMenuIsOpen()
+  for _, ctx in ipairs(CONTEXTS) do
+    if findContainerOptimized(ctx.map, ctx.minButtons) then
+      return true
+    end
+  end
+  return false
+end
+
 -- ---------- Cached UI traversal ----------
 local function updateRootCache()
   local now = os.time()
@@ -208,18 +216,6 @@ function findContainerOptimized(letterMap, minButtons)
   return nil
 end
 
-local function anyContextMenuIsOpen()
-  local root = updateRootCache()
-  if not root then return false end
-  
-  for _, ctx in ipairs(CONTEXTS) do
-    if findContainerOptimized(ctx.map, ctx.minButtons) then
-      return true
-    end
-  end
-  return false
-end
-
 local function collectItemsOptimized(container, letterMap)
   if not container then return {} end
 
@@ -263,7 +259,6 @@ local function clearTips()
   state.active = false
   state.context = "none"
   state.activeContainer = nil
-  -- state.isActivating is intentionally not reset here to preserve the activation guard
 end
 
 local function showTip(letter, frame)
@@ -293,11 +288,9 @@ end
 
 -- ---------- Main activation logic ----------
 local function activateKeytips()
-  if state.isActivating or hardStopped or not masterEnabled or not isExcelFrontmost() then
+  if hardStopped or not masterEnabled or not isExcelFrontmost() then
     return
   end
-  
-  state.isActivating = true
   clearTips()
 
   for _, ctx in ipairs(CONTEXTS) do
@@ -313,10 +306,7 @@ local function activateKeytips()
     end
   end
 
-  if not state.activeContainer then
-    state.isActivating = false
-    return
-  end
+  if not state.activeContainer then return end
 
   for letter, info in pairs(state.items) do
     showTip(letter, info.frame)
@@ -343,24 +333,11 @@ local function activateKeytips()
   state.tap:start()
 
   state.checkTimer = timer.doEvery(CONFIG.validationInterval, function()
-    local isStillValid = false
-    if state.activeContainer then
-        local children = safeAttr(state.activeContainer, "AXChildren")
-        if children then
-            for _, child in ipairs(children) do
-                if safeAttr(child, "AXRole") == "AXMenuButton" and visibleOnScreen(getFrame(child)) then
-                    isStillValid = true
-                    break
-                end
-            end
-        end
-    end
-    if not isStillValid then
-        clearTips()
+    if not safeAttr(state.activeContainer, "AXRole") then
+      clearTips()
     end
   end)
   state.checkTimer:start()
-  state.isActivating = false
 end
 
 -- ---------- Consolidated event handling ----------
