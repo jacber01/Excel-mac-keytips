@@ -57,7 +57,7 @@ local optionIsDown = false
 
 -- ---------- Optimized helpers ----------
 local function excelApp()
-  return app.get(CONFIG.excelBundleID) or app.appFromBundleID(CONFIG.excelBundleID)
+  return hs.application.find(CONFIG.excelBundleID)
 end
 
 local function excelRunning()
