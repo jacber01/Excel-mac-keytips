@@ -21,19 +21,53 @@ local CONFIG = {
 
 local LETTER_MAPS = {
   BORDERS = { B = {"Bottom Border"}, T = {"Top Border"}, L = {"Left Border"}, R = {"Right Border"}, N = {"No Border"}, A = {"All Borders"}, O = {"Outside Borders"}, H = {"Thick Box Border"}, M = {"More Borders"}, D = {"Bottom Double Border"}, K = {"Thick Bottom Border"}, P = {"Top and Bottom Border"}, U = {"Top and Thick Bottom Border"}, E = {"Top and Double Bottom Border"}, G = {"Draw Border Grid"}, S = {"Erase Border"} },
+  MERGE = { C = {"Center"}, A = {"Merge Across"}, M = {"Merge Cells"}, U = {"Unmerge Cells"}},
   FORMAT  = { H = {"Row Height"}, A = {"AutoFit Row Height"}, W = {"Column Width"}, I = {"AutoFit Column Width"}, D = {"Default Width"}, R = {"Rename Sheet"}, M = {"Move or Copy Sheet"}, P = {"Protect Sheet"}, L = {"Lock Cell"}, F = {"Format Cells"} },
   FREEZE  = { F = {"Freeze Panes"}, R = {"Freeze Top Row"}, C = {"Freeze First Column"} },
   INSERT  = { I = {"Insert Cells"}, R = {"Insert Sheet Rows"}, C = {"Insert Sheet Columns"}, S = {"Insert Sheet"} },
   DELETE  = { D = {"Delete Cells"}, R = {"Delete Sheet Rows"}, C = {"Delete Sheet Columns"}, T = {"Delete Table Rows"}, L = {"Delete Table Columns"}, S = {"Delete Sheet"} },
+  DELETE  = { D = {"Delete Cells"}, R = {"Delete Sheet Rows"}, C = {"Delete Sheet Columns"}, T = {"Delete Table Rows"}, L = {"Delete Table Columns"}, S = {"Delete Sheet"} },
+  PASTE = { A = {"Paste"}, F = {"Formulas"}, N = {"Formulas & Number Formatting"}, S = {"Keep Source Formatting"}, B = {"No Borders"}, W = {"Keep Source Column Widths"}, T = {"Transpose"}, V = {"Paste Values"}, U = {"Values & Number Formatting"}, O = {"Values & Source Formatting"}, R = {"Formatting"}, L = {"Paste Link"}, P = {"Paste as Picture"}, I = {"Linked Picture"}, M = {"Match Destination Formatting"}, E = {"Paste Special"}},
+  COPY  = { C = {"Copy"}, P = {"Copy as Picture"}},
+  GROUP  = { G = {"Group"}},
+  UNGROUP  = { U = {"Ungroup"}},
+  AUTOSUM  = { S = {"Sum"}, A = {"Average"}, C = {"Count Numbers"}, X = {"Max"}, I = {"Min"}, M = {"More Functions"}},
+  FILL  = { W = {"Up"}, S = {"Down"}, D = {"Right"}, A = {"Left"}, E = {"Series"}, R = {"Across Workbooks"}, J = {"Justify"}, F = {"Flash Fill"}},
+  CLEAR = { A = {"Clear All"}, F = {"Clear Formats"}, C = {"Clear Contents"}, N = {"Clear Comments and Notes"}, H = {"Clear Hyperlinks"}, R = {"Remove Hyperlinks"}},
+  SORT  = { A = {"Sort A to Z"}, Z = {"Sort Z to A"}, C = {"Custom Sort"}, F = {"Filter"}, L = {"Clear"}, R = {"Reapply"}},
+  FIND  = { F = {"Find"}, R = {"Replace"}, G = {"Go To"}, S = {"Go To Special"}, O = {"Formulas"}, N = {"Notes"}, C = {"Conditional Formatting"}, S = {"Constants"}, D = {"Data Validation"}, B = {"Select Objects"}, P = {"Selection Pane"}},
 }
 
 local CONTEXTS = {
-  { name = "borders", map = LETTER_MAPS.BORDERS, minButtons = 5 },
-  { name = "format",  map = LETTER_MAPS.FORMAT,  minButtons = 5 },
-  { name = "freeze",  map = LETTER_MAPS.FREEZE,  minButtons = 3 },
-  { name = "insert",  map = LETTER_MAPS.INSERT,  minButtons = 4 },
-  { name = "delete",  map = LETTER_MAPS.DELETE,  minButtons = 5 },
+  { name = "borders", map = LETTER_MAPS.BORDERS, minButtons = 5, trigger = "b" },
+  { name = "merge", map = LETTER_MAPS.MERGE, minButtons = 4, trigger = "m" },
+  { name = "format", map = LETTER_MAPS.FORMAT, minButtons = 5, trigger = "o" },
+  { name = "freeze", map = LETTER_MAPS.FREEZE, minButtons = 3, trigger = "f" },
+  { name = "insert", map = LETTER_MAPS.INSERT, minButtons = 4, trigger = "i" },
+  { name = "delete", map = LETTER_MAPS.DELETE, minButtons = 5, trigger = "d" },
+  { name = "paste", map = LETTER_MAPS.PASTE, minButtons = 1, trigger = "v" },
+  { name = "copy", map = LETTER_MAPS.COPY, minButtons = 1, trigger = "c" },
+  { name = "rotate", map = LETTER_MAPS.ROTATE, minButtons = 4, trigger = "q" },
+  { name = "group", map = LETTER_MAPS.GROUP, minButtons = 1, trigger = "g" },
+  { name = "ungroup", map = LETTER_MAPS.UNGROUP, minButtons = 1, trigger = "u" },
+  { name = "autosum", map = LETTER_MAPS.AUTOSUM, minButtons = 5, trigger = "u" },
+  { name = "fill", map = LETTER_MAPS.FILL, minButtons = 6, trigger = "i" },
+  { name = "clear", map = LETTER_MAPS.CLEAR, minButtons = 5, trigger = "e" },
+  { name = "sort", map = LETTER_MAPS.SORT, minButtons = 5, trigger = "s" },
+  { name = "find", map = LETTER_MAPS.FIND, minButtons = 6, trigger = "d" },
 }
+
+-- Build trigger key to context mapping (support multiple contexts per key)
+local TRIGGER_CONTEXTS = {}
+for _, ctx in ipairs(CONTEXTS) do
+  if ctx.trigger then
+    local code = keycodes.map[ctx.trigger]
+    if code then
+      TRIGGER_CONTEXTS[code] = TRIGGER_CONTEXTS[code] or {}
+      table.insert(TRIGGER_CONTEXTS[code], ctx)
+    end
+  end
+end
 
 local cache = { root = nil, lastUpdate = 0 }
 local state = {
@@ -287,23 +321,39 @@ local function showTip(letter, frame)
 end
 
 -- ---------- Main activation logic ----------
-local function activateKeytips()
+local function activateKeytips(request)
   if hardStopped or not masterEnabled or not isExcelFrontmost() then
     return
   end
   clearTips()
 
-  for _, ctx in ipairs(CONTEXTS) do
-    local container = findContainerOptimized(ctx.map, ctx.minButtons)
-    if container then
-      local items = collectItemsOptimized(container, ctx.map)
-      if next(items) ~= nil then
-        state.items = items
-        state.context = ctx.name
-        state.activeContainer = container
+  local function tryContexts(list)
+    for _, ctx in ipairs(list) do
+      local container = findContainerOptimized(ctx.map, ctx.minButtons)
+      if container then
+        local items = collectItemsOptimized(container, ctx.map)
+        if next(items) ~= nil then
+          state.items = items
+          state.context = ctx.name
+          state.activeContainer = container
+          return true
+        end
+      end
+    end
+    return false
+  end
+
+  if type(request) == "table" then
+    tryContexts(request)
+  elseif type(request) == "string" then
+    for _, ctx in ipairs(CONTEXTS) do
+      if ctx.name == request then
+        tryContexts({ ctx })
         break
       end
     end
+  else
+    tryContexts(CONTEXTS)
   end
 
   if not state.activeContainer then return end
@@ -323,9 +373,7 @@ local function activateKeytips()
       pcall(function() target.el:performAction("AXPress") end)
     end
     clearTips()
-    timer.doAfter(CONFIG.reactivateDelay, function()
-      if not hardStopped and masterEnabled then activateKeytips() end
-    end)
+    -- Removed auto-reactivation after key press
     return true
   end)
 
@@ -347,22 +395,31 @@ local function handleKeyDown(ev)
   local keyCode = ev:getKeyCode()
 
   if keyCode == keycodes.map.escape and state.active then
+    -- Only handle ESC when keytips overlay is active
+    eventtap.keyStroke({}, "escape", 0)
+
+    local frame = state.activeContainer and getFrame(state.activeContainer) or nil
+    if frame then
+      local rawX = frame.x + frame.w / 2
+      local rawY = frame.y - 20
+      local scr = screenForRectCompat(frame):frame()
+      local cx = math.max(scr.x, math.min(rawX, scr.x + scr.w - 1))
+      local cy = math.max(scr.y, math.min(rawY, scr.y + scr.h - 1))
+
+      hs.eventtap.leftClick({ x = cx, y = cy })
+    end
+
     masterEnabled = false
     clearTips()
     return true
   end
 
-  local triggerKeys = {
-    [keycodes.map.b] = true, [keycodes.map.o] = true,
-    [keycodes.map.f] = true, [keycodes.map.i] = true,
-    [keycodes.map.d] = true,
-  }
-
-  if triggerKeys[keyCode] then
+  local ctxList = TRIGGER_CONTEXTS[keyCode]
+  if ctxList then
     if activityTimer then activityTimer:stop() end
     activityTimer = timer.doAfter(CONFIG.activationDelay, function()
       activityTimer = nil
-      if not hardStopped and masterEnabled then activateKeytips() end
+      if not hardStopped and masterEnabled then activateKeytips(ctxList) end
     end)
     return false
   end
@@ -379,9 +436,6 @@ local function handleMouseDown()
 
   if state.active then
     clearTips()
-    timer.doAfter(CONFIG.reactivateDelay, function()
-      if not hardStopped and masterEnabled then activateKeytips() end
-    end)
   end
 
   timer.doAfter(CONFIG.reactivateDelay, function()
@@ -396,14 +450,7 @@ end
 local function handleMouseUp()
   if hardStopped or not masterEnabled or not isExcelFrontmost() then return false end
 
-  if activityTimer then activityTimer:stop() end
-  activityTimer = timer.doAfter(CONFIG.mouseActivityDelay, function()
-    activityTimer = nil
-    if not suppressAutoFromMouse and not suppressAutoFromOption and
-       not hardStopped and masterEnabled then
-      activateKeytips()
-    end
-  end)
+  -- Removed auto-activation on mouse activity
   return false
 end
 
@@ -475,9 +522,6 @@ appWatcher = app.watcher.new(function(appName, eventType, appObj)
     if eventType == app.watcher.activated then
       if hardStopped then return end
       mainTap:start()
-      timer.doAfter(0.15, function()
-        if not hardStopped then activateKeytips() end
-      end)
     elseif eventType == app.watcher.deactivated then
       if hardStopped then return end
       mainTap:stop()
