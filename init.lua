@@ -26,7 +26,6 @@ local LETTER_MAPS = {
   FREEZE  = { F = {"Freeze Panes"}, R = {"Freeze Top Row"}, C = {"Freeze First Column"} },
   INSERT  = { I = {"Insert Cells"}, R = {"Insert Sheet Rows"}, C = {"Insert Sheet Columns"}, S = {"Insert Sheet"} },
   DELETE  = { D = {"Delete Cells"}, R = {"Delete Sheet Rows"}, C = {"Delete Sheet Columns"}, T = {"Delete Table Rows"}, L = {"Delete Table Columns"}, S = {"Delete Sheet"} },
-  DELETE  = { D = {"Delete Cells"}, R = {"Delete Sheet Rows"}, C = {"Delete Sheet Columns"}, T = {"Delete Table Rows"}, L = {"Delete Table Columns"}, S = {"Delete Sheet"} },
   PASTE = { A = {"Paste"}, F = {"Formulas"}, N = {"Formulas & Number Formatting"}, S = {"Keep Source Formatting"}, B = {"No Borders"}, W = {"Keep Source Column Widths"}, T = {"Transpose"}, V = {"Paste Values"}, U = {"Values & Number Formatting"}, O = {"Values & Source Formatting"}, R = {"Formatting"}, L = {"Paste Link"}, P = {"Paste as Picture"}, I = {"Linked Picture"}, M = {"Match Destination Formatting"}, E = {"Paste Special"}},
   COPY  = { C = {"Copy"}, P = {"Copy as Picture"}},
   GROUP  = { G = {"Group"}},
