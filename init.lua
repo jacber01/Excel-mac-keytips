@@ -42,7 +42,6 @@ local state = {
   tips            = {},
   items           = {},
   tap             = nil,
-  context         = "none",
   checkTimer      = nil,
 }
 local masterEnabled = true
@@ -59,7 +58,6 @@ local scanWindowActive = false
 local scanWindowTimer = nil
 
 local function startScanWindow()
-  if scanWindowActive then return end
   scanWindowActive = true
   if scanWindowTimer then scanWindowTimer:stop(); scanWindowTimer = nil end
   scanWindowTimer = timer.doAfter(5, function()
@@ -268,7 +266,6 @@ local function clearTips()
   if state.tap then state.tap:stop(); state.tap = nil end
   if state.checkTimer then state.checkTimer:stop(); state.checkTimer = nil end
   state.active = false
-  state.context = "none"
   state.activeContainer = nil
 end
 
@@ -312,7 +309,6 @@ local function activateKeytips()
       local items = collectItemsOptimized(container, ctx.map)
       if next(items) ~= nil then
         state.items = items
-        state.context = ctx.name
         state.activeContainer = container
         break
       end
@@ -350,7 +346,6 @@ local function activateKeytips()
       clearTips()
     end
   end)
-  state.checkTimer:start()
 end
 
 local function handleKeyDown(ev)
