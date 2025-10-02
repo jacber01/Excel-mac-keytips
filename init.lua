@@ -46,14 +46,14 @@ local CONTEXTS = {
   { name = "delete", map = LETTER_MAPS.DELETE, minButtons = 5, trigger = "d", parent_menu_trigger = "h" },
   { name = "paste", map = LETTER_MAPS.PASTE, minButtons = 1, trigger = "v", parent_menu_trigger = "h" },
   { name = "copy", map = LETTER_MAPS.COPY, minButtons = 1, trigger = "c", parent_menu_trigger = "h" },
-  { name = "rotate", map = LETTER_MAPS.ROTATE, minButtons = 4, trigger = "q", parent_menu_trigger = "h" },
+  { name = "rotate", map = LETTER_MAPS.ROTATE, minButtons = 4, trigger = "fq", parent_menu_trigger = "h" },
   { name = "group", map = LETTER_MAPS.GROUP, minButtons = 1, trigger = "g", parent_menu_trigger = "a" },
   { name = "ungroup", map = LETTER_MAPS.UNGROUP, minButtons = 1, trigger = "u", parent_menu_trigger = "a" },
   { name = "autosum", map = LETTER_MAPS.AUTOSUM, minButtons = 5, trigger = "u", parent_menu_trigger = "h" },
-  { name = "fill", map = LETTER_MAPS.FILL, minButtons = 6, trigger = "i", parent_menu_trigger = "h" },
+  { name = "fill", map = LETTER_MAPS.FILL, minButtons = 6, trigger = "fi", parent_menu_trigger = "h" },
   { name = "clear", map = LETTER_MAPS.CLEAR, minButtons = 5, trigger = "e", parent_menu_trigger = "h" },
   { name = "sort", map = LETTER_MAPS.SORT, minButtons = 5, trigger = "s", parent_menu_trigger = "h" },
-  { name = "find", map = LETTER_MAPS.FIND, minButtons = 6, trigger = "d", parent_menu_trigger = "h" },
+  { name = "find", map = LETTER_MAPS.FIND, minButtons = 6, trigger = "fd", parent_menu_trigger = "h" },
 }
 
 -- Build trigger sequence to context mapping (1–2 letter triggers)
