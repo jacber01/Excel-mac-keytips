@@ -38,34 +38,51 @@ local LETTER_MAPS = {
 }
 
 local CONTEXTS = {
-  { name = "borders", map = LETTER_MAPS.BORDERS, minButtons = 5, trigger = "b" },
-  { name = "merge", map = LETTER_MAPS.MERGE, minButtons = 4, trigger = "m" },
-  { name = "format", map = LETTER_MAPS.FORMAT, minButtons = 5, trigger = "o" },
-  { name = "freeze", map = LETTER_MAPS.FREEZE, minButtons = 3, trigger = "f" },
-  { name = "insert", map = LETTER_MAPS.INSERT, minButtons = 4, trigger = "i" },
-  { name = "delete", map = LETTER_MAPS.DELETE, minButtons = 5, trigger = "d" },
-  { name = "paste", map = LETTER_MAPS.PASTE, minButtons = 1, trigger = "v" },
-  { name = "copy", map = LETTER_MAPS.COPY, minButtons = 1, trigger = "c" },
-  { name = "rotate", map = LETTER_MAPS.ROTATE, minButtons = 4, trigger = "q" },
-  { name = "group", map = LETTER_MAPS.GROUP, minButtons = 1, trigger = "g" },
-  { name = "ungroup", map = LETTER_MAPS.UNGROUP, minButtons = 1, trigger = "u" },
-  { name = "autosum", map = LETTER_MAPS.AUTOSUM, minButtons = 5, trigger = "u" },
-  { name = "fill", map = LETTER_MAPS.FILL, minButtons = 6, trigger = "i" },
-  { name = "clear", map = LETTER_MAPS.CLEAR, minButtons = 5, trigger = "e" },
-  { name = "sort", map = LETTER_MAPS.SORT, minButtons = 5, trigger = "s" },
-  { name = "find", map = LETTER_MAPS.FIND, minButtons = 6, trigger = "d" },
+  { name = "borders", map = LETTER_MAPS.BORDERS, minButtons = 5, trigger = "b", parent_menu_trigger = "h" },
+  { name = "merge", map = LETTER_MAPS.MERGE, minButtons = 4, trigger = "m", parent_menu_trigger = "h" },
+  { name = "format", map = LETTER_MAPS.FORMAT, minButtons = 5, trigger = "o", parent_menu_trigger = "h" },
+  { name = "freeze", map = LETTER_MAPS.FREEZE, minButtons = 3, trigger = "f", parent_menu_trigger = "w" },
+  { name = "insert", map = LETTER_MAPS.INSERT, minButtons = 4, trigger = "i", parent_menu_trigger = "h" },
+  { name = "delete", map = LETTER_MAPS.DELETE, minButtons = 5, trigger = "d", parent_menu_trigger = "h" },
+  { name = "paste", map = LETTER_MAPS.PASTE, minButtons = 1, trigger = "v", parent_menu_trigger = "h" },
+  { name = "copy", map = LETTER_MAPS.COPY, minButtons = 1, trigger = "c", parent_menu_trigger = "h" },
+  { name = "rotate", map = LETTER_MAPS.ROTATE, minButtons = 4, trigger = "q", parent_menu_trigger = "h" },
+  { name = "group", map = LETTER_MAPS.GROUP, minButtons = 1, trigger = "g", parent_menu_trigger = "a" },
+  { name = "ungroup", map = LETTER_MAPS.UNGROUP, minButtons = 1, trigger = "u", parent_menu_trigger = "a" },
+  { name = "autosum", map = LETTER_MAPS.AUTOSUM, minButtons = 5, trigger = "u", parent_menu_trigger = "h" },
+  { name = "fill", map = LETTER_MAPS.FILL, minButtons = 6, trigger = "i", parent_menu_trigger = "h" },
+  { name = "clear", map = LETTER_MAPS.CLEAR, minButtons = 5, trigger = "e", parent_menu_trigger = "h" },
+  { name = "sort", map = LETTER_MAPS.SORT, minButtons = 5, trigger = "s", parent_menu_trigger = "h" },
+  { name = "find", map = LETTER_MAPS.FIND, minButtons = 6, trigger = "d", parent_menu_trigger = "h" },
 }
 
--- Build trigger key to context mapping (support multiple contexts per key)
+-- Build trigger sequence to context mapping (1–2 letter triggers)
+-- Triggers DO NOT include parent_menu_trigger; that is validated separately
 local TRIGGER_CONTEXTS = {}
+local PARENT_KEYS = {}
 for _, ctx in ipairs(CONTEXTS) do
-  if ctx.trigger then
-    local code = keycodes.map[ctx.trigger]
-    if code then
-      TRIGGER_CONTEXTS[code] = TRIGGER_CONTEXTS[code] or {}
-      table.insert(TRIGGER_CONTEXTS[code], ctx)
-    end
+  if ctx.trigger and type(ctx.trigger) == "string" then
+    local trig = ctx.trigger:lower()
+    TRIGGER_CONTEXTS[trig] = TRIGGER_CONTEXTS[trig] or {}
+    table.insert(TRIGGER_CONTEXTS[trig], ctx)
   end
+  if ctx.parent_menu_trigger and type(ctx.parent_menu_trigger) == "string" then
+    PARENT_KEYS[ctx.parent_menu_trigger:lower()] = true
+  end
+end
+
+-- Key sequence tracking (supports 1–2 letter triggers)
+local keySeqBuffer = ""
+local lastKeyTs = 0
+local lastParentKey = nil
+local lastParentTs = 0
+local lastAltDownTs = 0
+local SEQ_TIMEOUT = 1.0   -- seconds between letters in the trigger
+local CHAIN_TIMEOUT = 2.0 -- seconds for opt -> parent -> trigger chain
+
+local function nowSeconds()
+  if timer and timer.secondsSinceEpoch then return timer.secondsSinceEpoch() end
+  return os.time()
 end
 
 local cache = { root = nil, lastUpdate = 0 }
@@ -292,6 +309,9 @@ local function clearTips()
   state.active = false
   state.context = "none"
   state.activeContainer = nil
+  -- Also reset sequence tracking on full clear
+  keySeqBuffer = ""
+  lastParentKey = nil
 end
 
 local function showTip(letter, frame)
@@ -373,6 +393,8 @@ local function activateKeytips(request)
     end
     clearTips()
     -- Removed auto-reactivation after key press
+    -- Reset chain state after an activation tap
+    keySeqBuffer = ""
     return true
   end)
 
@@ -392,6 +414,8 @@ local function handleKeyDown(ev)
   if hardStopped or not masterEnabled or not isExcelFrontmost() then return false end
 
   local keyCode = ev:getKeyCode()
+  local char = ev:getCharacters()
+  local ts = nowSeconds()
 
   if keyCode == keycodes.map.escape and state.active then
     -- Only handle ESC when keytips overlay is active
@@ -413,14 +437,52 @@ local function handleKeyDown(ev)
     return true
   end
 
-  local ctxList = TRIGGER_CONTEXTS[keyCode]
-  if ctxList then
-    if activityTimer then activityTimer:stop() end
-    activityTimer = timer.doAfter(CONFIG.activationDelay, function()
-      activityTimer = nil
-      if not hardStopped and masterEnabled then activateKeytips(ctxList) end
-    end)
-    return false
+  -- Track parent menu keys (single letters) and alt chain
+  if char and #char == 1 then
+    local lower = char:lower()
+    if PARENT_KEYS[lower] then
+      lastParentKey = lower
+      lastParentTs = ts
+    end
+  end
+
+  -- Sequence buffer for 1–2 letter triggers
+  if char and #char == 1 then
+    local lower = char:lower()
+    if (ts - lastKeyTs) > SEQ_TIMEOUT then
+      keySeqBuffer = ""
+    end
+    keySeqBuffer = (keySeqBuffer .. lower):sub(-2)
+    lastKeyTs = ts
+
+    -- Try exact match (2 letters), then 1 letter
+    local candidates = TRIGGER_CONTEXTS[keySeqBuffer] or TRIGGER_CONTEXTS[keySeqBuffer:sub(-1)]
+    if candidates then
+      -- Validate optional parent + opt chain if any candidate requires it
+      local function chainValid(ctx)
+        if not ctx.parent_menu_trigger then return true end
+        if not lastParentKey or lastParentKey ~= ctx.parent_menu_trigger:lower() then return false end
+        if (ts - lastParentTs) > CHAIN_TIMEOUT then return false end
+        if (ts - lastAltDownTs) > CHAIN_TIMEOUT then return false end
+        return true
+      end
+
+      local validList = {}
+      for _, c in ipairs(candidates) do
+        if chainValid(c) then table.insert(validList, c) end
+      end
+
+      if #validList > 0 then
+        if activityTimer then activityTimer:stop() end
+        local req = validList
+        activityTimer = timer.doAfter(CONFIG.activationDelay, function()
+          activityTimer = nil
+          if not hardStopped and masterEnabled then activateKeytips(req) end
+        end)
+        keySeqBuffer = ""
+        return false
+      end
+    end
   end
 
   if suppressAutoFromOption then
@@ -443,6 +505,10 @@ local function handleMouseDown()
     end
   end)
 
+  -- Mouse interaction cancels any pending key sequence
+  keySeqBuffer = ""
+  lastParentKey = nil
+
   return false
 end
 
@@ -450,6 +516,7 @@ local function handleMouseUp()
   if hardStopped or not masterEnabled or not isExcelFrontmost() then return false end
 
   -- Removed auto-activation on mouse activity
+  -- Do not auto-activate; just ensure sequence timeouts naturally
   return false
 end
 
@@ -462,6 +529,7 @@ local function handleFlagsChanged(ev)
   if nowDown ~= optionIsDown then
     optionIsDown = nowDown
     if nowDown then
+      lastAltDownTs = nowSeconds()
       if state.active or not masterEnabled then
         if masterEnabled then
           masterEnabled = false
