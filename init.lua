@@ -55,7 +55,20 @@ local suppressAutoFromMouse = false
 local suppressAutoFromOption = false
 local optionIsDown = false
 
--- ---------- Optimized helpers ----------
+local scanWindowActive = false
+local scanWindowTimer = nil
+
+local function startScanWindow()
+  if scanWindowActive then return end
+  scanWindowActive = true
+  if scanWindowTimer then scanWindowTimer:stop(); scanWindowTimer = nil end
+  scanWindowTimer = timer.doAfter(5, function()
+    scanWindowActive = false
+    if activityTimer then activityTimer:stop(); activityTimer = nil end
+    clearTips()
+  end)
+end
+
 local function excelApp()
   return hs.application.find(CONFIG.excelBundleID)
 end
@@ -148,7 +161,6 @@ local function anyContextMenuIsOpen()
   return false
 end
 
--- ---------- Cached UI traversal ----------
 local function updateRootCache()
   local now = os.time()
   if cache.root and (now - cache.lastUpdate) < CONFIG.rootCacheDuration then
@@ -248,7 +260,6 @@ local function collectItemsOptimized(container, letterMap)
   return found
 end
 
--- ---------- Visual tips ----------
 local function clearTips()
   for _, c in pairs(state.tips) do
     pcall(function() c:hide(); c:delete() end)
@@ -286,9 +297,11 @@ local function showTip(letter, frame)
   state.tips[letter] = c
 end
 
--- ---------- Main activation logic ----------
 local function activateKeytips()
   if hardStopped or not masterEnabled or not isExcelFrontmost() then
+    return
+  end
+  if not scanWindowActive then
     return
   end
   clearTips()
@@ -324,7 +337,7 @@ local function activateKeytips()
     end
     clearTips()
     timer.doAfter(CONFIG.reactivateDelay, function()
-      if not hardStopped and masterEnabled then activateKeytips() end
+      if not hardStopped and masterEnabled and scanWindowActive then activateKeytips() end
     end)
     return true
   end)
@@ -340,7 +353,6 @@ local function activateKeytips()
   state.checkTimer:start()
 end
 
--- ---------- Consolidated event handling ----------
 local function handleKeyDown(ev)
   if hardStopped or not masterEnabled or not isExcelFrontmost() then return false end
 
@@ -359,10 +371,11 @@ local function handleKeyDown(ev)
   }
 
   if triggerKeys[keyCode] then
+    if not scanWindowActive then return false end
     if activityTimer then activityTimer:stop() end
     activityTimer = timer.doAfter(CONFIG.activationDelay, function()
       activityTimer = nil
-      if not hardStopped and masterEnabled then activateKeytips() end
+      if not hardStopped and masterEnabled and scanWindowActive then activateKeytips() end
     end)
     return false
   end
@@ -380,7 +393,7 @@ local function handleMouseDown()
   if state.active then
     clearTips()
     timer.doAfter(CONFIG.reactivateDelay, function()
-      if not hardStopped and masterEnabled then activateKeytips() end
+      if not hardStopped and masterEnabled and scanWindowActive then activateKeytips() end
     end)
   end
 
@@ -400,7 +413,7 @@ local function handleMouseUp()
   activityTimer = timer.doAfter(CONFIG.mouseActivityDelay, function()
     activityTimer = nil
     if not suppressAutoFromMouse and not suppressAutoFromOption and
-       not hardStopped and masterEnabled then
+       not hardStopped and masterEnabled and scanWindowActive then
       activateKeytips()
     end
   end)
@@ -416,6 +429,7 @@ local function handleFlagsChanged(ev)
   if nowDown ~= optionIsDown then
     optionIsDown = nowDown
     if nowDown then
+      startScanWindow()
       if state.active or not masterEnabled then
         if masterEnabled then
           masterEnabled = false
@@ -437,7 +451,6 @@ local function handleFlagsChanged(ev)
   return false
 end
 
--- ---------- System integration ----------
 local function teardownAndDisable()
   if hardStopped then return end
   hardStopped, masterEnabled = true, false
@@ -476,7 +489,7 @@ appWatcher = app.watcher.new(function(appName, eventType, appObj)
       if hardStopped then return end
       mainTap:start()
       timer.doAfter(0.15, function()
-        if not hardStopped then activateKeytips() end
+        if not hardStopped and scanWindowActive then activateKeytips() end
       end)
     elseif eventType == app.watcher.deactivated then
       if hardStopped then return end
