@@ -13,7 +13,7 @@ It overlays clean visual labels for the **Borders**, **Format**, **Freeze**, **I
 
 ## Usage
 1. Install [Hammerspoon](https://www.hammerspoon.org/).
-2. Copy the provided `init.lua` into your `~/.hammerspoon/` directory.
+2. Copy the provided `init.lua` into your `~/.hammerspoon/` directory. (Open Finder. Press ⌘ + Shift + G. In the dialog, type ~/.hammerspoon)
 3. Reload Hammerspoon.
 4. Open Excel and use the standard macOS equivalents:
    - `Option→H→B` → Borders (with custom KeyTips)
