@@ -27,7 +27,7 @@ It overlays clean visual labels for the **Borders**, **Format**, **Freeze**, **I
 - Designed for Microsoft Excel 365/2024 on macOS in Dark Mode.
 - Minor Excel updates should not affect functionality.
 - You have to enable Keytips in Preferences→Accessibility
-- You have to set your excel to English
+- You have to set your Excel to English
 
 ## License
 MIT License
