@@ -4,7 +4,7 @@ This project brings Windows-style **KeyTips** to Microsoft Excel on macOS using 
 It overlays clean visual labels for the **Borders**, **Format**, **Freeze**, **Insert** and **Delete** dropdown menus and allows activating options directly from the keyboard.
 
 ## Features
-- Custom visual KeyTips for Excel menus (`Borders`, `Format`, `Freeze`,`Insert`, `Delete`).
+- Custom visual KeyTips for Excel menus (`Borders`, `Format`, `Freeze`,`Insert`, `Delete` & `More...`).
 - Matches native KeyTips appearance (dark gray pill, white text).
 - Automatically appears when menus are opened (`Option→H→B`, `Option→H→O`, `Option→W→F`, `Option→H→I`, `Option→H→D`).
 - Efficient and lightweight, safe to keep running in the background.
