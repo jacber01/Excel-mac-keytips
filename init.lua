@@ -374,7 +374,15 @@ local function handleFlagsChanged(ev)
     local nowDown = flags.alt or flags.altgr
     if nowDown then
         lastAltDownTs = nowSeconds()
-        if state.active then clearTips() else startScanWindow() end
+        if state.active then 
+            clearTips() 
+        else 
+            if scanWindowActive then
+                startScanWindow() 
+            else
+                startScanWindow()
+            end
+        end
     end
     return false
 end
