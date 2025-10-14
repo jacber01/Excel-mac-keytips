@@ -6,9 +6,7 @@ local screen    = require("hs.screen")
 local timer     = require("hs.timer")
 local keycodes  = require("hs.keycodes")
 
-
 -- Keytip Maps and Contexts
-
 local LETTER_MAPS = {
     BORDERS = {B={"Bottom Border"},T={"Top Border"},L={"Left Border"},R={"Right Border"},N={"No Border"},A={"All Borders"},O={"Outside Borders"},H={"Thick Box Border"},M={"More Borders"},D={"Bottom Double Border"},K={"Thick Bottom Border"},P={"Top and Bottom Border"},U={"Top and Thick Bottom Border"},E={"Top and Double Bottom Border"},G={"Draw Border Grid"},S={"Erase Border"}},
     FORMAT  = {H={"Row Height"},A={"AutoFit Row Height"},W={"Column Width"},I={"AutoFit Column Width"},D={"Default Width"},R={"Rename Sheet"},M={"Move or Copy Sheet"},P={"Protect Sheet"},L={"Lock Cell"},F={"Format Cells"}},
@@ -21,6 +19,11 @@ local LETTER_MAPS = {
     GROUP   = {G={"Group"}},
     UNGROUP = {U={"Ungroup"}},
     AUTOSUM = {S={"Sum"},A={"Average"},C={"Count Numbers"},X={"Max"},I={"Min"},M={"More Functions"}},
+    ROTATE  = {A={"Angle Counterclockwise"},C={"Angle Clockwise"},V={"Vertical Text"},U={"Rotate Text Up"},D={"Rotate Text Down"},M={"Format Cell Alignment"}},
+    FILL    = {W={"Up"},S={"Down"},D={"Right"},A={"Left"},E={"Series"},R={"Across Workbooks"},J={"Justify"},F={"Flash Fill"}},
+    CLEAR   = {A={"Clear All"},F={"Clear Formats"},C={"Clear Contents"},N={"Clear Comments and Notes"},H={"Clear Hyperlinks"},R={"Remove Hyperlinks"}},
+    SORT    = {A={"Sort A to Z"},Z={"Sort Z to A"},C={"Custom Sort"},F={"Filter"},L={"Clear"},R={"Reapply"}},
+    FIND    = {F={"Find"},R={"Replace"},G={"Go To"},S={"Go To Special","Constants"},O={"Formulas"},N={"Notes"},C={"Conditional Formatting"},D={"Data Validation"},B={"Select Objects"},P={"Selection Pane"}},
 }
 
 local CONTEXTS = {
@@ -35,6 +38,11 @@ local CONTEXTS = {
     {name="group",   map=LETTER_MAPS.GROUP,   minButtons=1},
     {name="ungroup", map=LETTER_MAPS.UNGROUP, minButtons=1},
     {name="autosum", map=LETTER_MAPS.AUTOSUM, minButtons=5},
+    {name="rotate",  map=LETTER_MAPS.ROTATE,  minButtons=4},
+    {name="fill",    map=LETTER_MAPS.FILL,    minButtons=6},
+    {name="clear",   map=LETTER_MAPS.CLEAR,   minButtons=5},
+    {name="sort",    map=LETTER_MAPS.SORT,    minButtons=5},
+    {name="find",    map=LETTER_MAPS.FIND,    minButtons=6},
 }
 
 -- Trigger metadata (used only during the scan window)
@@ -49,12 +57,16 @@ local TRIGGER_CONTEXTS = {
     c={{name="copy",    parent_menu_trigger="h"}},
     g={{name="group",   parent_menu_trigger="a"}},
     u={{name="ungroup", parent_menu_trigger="a"},{name="autosum", parent_menu_trigger="h"}},
+    fq={{name="rotate", parent_menu_trigger="h"}},
+    fi={{name="fill",   parent_menu_trigger="h"}},
+    e={{name="clear",   parent_menu_trigger="h"}},
+    s={{name="sort",    parent_menu_trigger="h"}},
+    fd={{name="find",   parent_menu_trigger="h"}},
 }
 local PARENT_KEYS = {h=true, w=true, a=true}
 
 
 -- State and Utility
-
 local cache = {root=nil, lastUpdate=0}
 local state = {active=false, activeContainer=nil, tips={}, items={}, tap=nil, checkTimer=nil}
 local masterEnabled, hardStopped, scanWindowActive = true, false, false
@@ -73,7 +85,6 @@ local function isExcelFrontmost() local e=excelApp() return e and e:isFrontmost(
 
 
 -- Accessibility Helpers
-
 local function safeAttr(el, attr)
     if not el then return nil end
     local ok, val = pcall(function() return el:attributeValue(attr) end)
@@ -135,7 +146,6 @@ end
 
 
 -- UI Traversal (Cached)
-
 local function updateRootCache()
     local now = os.time()
     if cache.root and (now - cache.lastUpdate) < 2 then return cache.root end
@@ -200,7 +210,6 @@ end
 
 
 -- Overlay Rendering
-
 local function clearTips()
     for _, c in pairs(state.tips) do pcall(function() c:hide(); c:delete() end) end
     state.tips, state.items = {}, {}
@@ -227,7 +236,6 @@ end
 
 
 -- Scan Window Control
-
 local function startScanWindow()
     scanWindowActive = true
     if scanWindowTimer then scanWindowTimer:stop(); scanWindowTimer=nil end
@@ -248,7 +256,6 @@ end
 
 
 -- Activation Logic
-
 local function activateKeytips(request)
     if hardStopped or not masterEnabled or not isExcelFrontmost() or not scanWindowActive then return end
     clearTips()
@@ -290,16 +297,34 @@ local function activateKeytips(request)
         if ev:getKeyCode()==keycodes.map.escape then
             clearTips(); cancelScanWindow(); return false
         end
-        local char = ev:getCharacters(); if not char or char=="" then return true end
-        local letter = string.upper(char); local target = state.items[letter]
-        if target and target.el then
-            pcall(function() target.el:performAction("AXPress") end)
-            clearTips()
-            timer.doAfter(0.12, function()
-                if not hardStopped and masterEnabled and scanWindowActive then activateKeytips(request) end
-            end)
+
+        local kc = ev:getKeyCode()
+        local allowNav = (
+            kc == keycodes.map["return"] or
+            kc == keycodes.map.enter or
+            kc == keycodes.map.tab or
+            kc == keycodes.map.left or kc == keycodes.map.right or
+            kc == keycodes.map.up   or kc == keycodes.map.down or
+            kc == keycodes.map.delete or kc == keycodes.map.forwarddelete
+        )
+        if allowNav then
+            clearTips(); cancelScanWindow(); return false
         end
-        return true
+
+        local char = ev:getCharacters()
+        if char and char~="" then
+            local letter = string.upper(char); local target = state.items[letter]
+            if target and target.el then
+                pcall(function() target.el:performAction("AXPress") end)
+                clearTips()
+                timer.doAfter(0.12, function()
+                    if not hardStopped and masterEnabled and scanWindowActive then activateKeytips(type(request)=="table" and request or nil) end
+                end)
+                return true
+            end
+        end
+
+        clearTips(); cancelScanWindow(); return false
     end)
     state.active = true; state.tap:start()
     state.checkTimer = timer.doEvery(0.2, function() if not safeAttr(state.activeContainer,"AXRole") then clearTips() end end)
@@ -307,7 +332,6 @@ end
 
 
 -- Event Handlers
-
 local function handleKeyDown(ev)
     if hardStopped or not masterEnabled or not isExcelFrontmost() then return false end
     local keyCode = ev:getKeyCode()
@@ -356,7 +380,9 @@ local function handleKeyDown(ev)
         local char = ev:getCharacters()
         if char and char~="" then
             local letter = string.upper(char)
-            if not state.items[letter] then return true end
+            if not state.items[letter] then
+                clearTips(); cancelScanWindow(); return false
+            end
         end
     end
     return false
@@ -377,11 +403,7 @@ local function handleFlagsChanged(ev)
         if state.active then 
             clearTips() 
         else 
-            if scanWindowActive then
-                startScanWindow() 
-            else
-                startScanWindow()
-            end
+            startScanWindow()
         end
     end
     return false
@@ -389,7 +411,6 @@ end
 
 
 -- Integration
-
 local function teardownAndDisable()
     if hardStopped then return end
     hardStopped, masterEnabled = true, false
