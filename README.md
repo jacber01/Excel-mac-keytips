@@ -10,7 +10,7 @@ It overlays clean visual labels for the **Borders**, **Format**, **Freeze**, **I
 - Efficient and lightweight, safe to keep running in the background.
 - Emergency self-disabling if Excel quits unexpectedly.
 - NEW: Added support for the insert and delete menus.
-- NEW: Added support for Merge, Paste, Copy, Group, Ungroup, and AutoSum menus.
+- NEW: Added support for Merge, Paste, Copy, Group, Ungroup, and More... menus.
 
 ## Usage
 1. Install [Hammerspoon](https://www.hammerspoon.org/).
