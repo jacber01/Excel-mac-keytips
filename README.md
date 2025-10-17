@@ -15,8 +15,7 @@ It overlays clean visual labels for the **Borders**, **Format**, **Freeze**, **I
 ## Usage
 1. Install [Hammerspoon](https://www.hammerspoon.org/).
    
-3. Copy the provided `init.lua` into your `~/.hammerspoon/` directory. (Open Finder. Press ⌘ + Shift + G. In the dialog, type ~/.hammerspoon)
-   
+3. Copy the provided `init.lua` into your `~/.hammerspoon/` directory. (Open Finder. Press ⌘ + Shift + G. In the dialog, type ~/.hammerspoon)   
    2.1. If you want your Borders menu to use the **American keytip layout** (i.e. "O" for Bottom Border, "P" for Top Border, etc.), copy the `init.lua` file from the **“American Layout”** folder into your `~/.hammerspoon/` directory.
 3. Reload Hammerspoon.
 4. Open Excel and use the standard macOS equivalents:
