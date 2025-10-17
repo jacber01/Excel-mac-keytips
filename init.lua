@@ -65,7 +65,6 @@ local TRIGGER_CONTEXTS = {
 }
 local PARENT_KEYS = {h=true, w=true, a=true}
 
-
 -- State and Utility
 local cache = {root=nil, lastUpdate=0}
 local state = {active=false, activeContainer=nil, tips={}, items={}, tap=nil, checkTimer=nil}
@@ -75,14 +74,14 @@ local mainTap, appWatcher, activityTimer, scanWindowTimer = nil, nil, nil, nil
 -- Sequence timing (active only during scan window)
 local keySeqBuffer, lastKeyTs = "", 0
 local lastParentKey, lastParentTs, lastAltDownTs = nil, 0, 0
-local SEQ_TIMEOUT, CHAIN_TIMEOUT = 1.0, 2.0
+local SEQ_TIMEOUT, CHAIN_TIMEOUT = 1.5, 3.0
+local altIsDown = false
+local containerGoneSince = nil
 
 local function nowSeconds() if timer and timer.secondsSinceEpoch then return timer.secondsSinceEpoch() end return os.time() end
-
 local function excelApp() return hs.application.find("com.microsoft.Excel") end
 local function excelRunning() local e=excelApp() return e and e:isRunning() end
 local function isExcelFrontmost() local e=excelApp() return e and e:isFrontmost() end
-
 
 -- Accessibility Helpers
 local function safeAttr(el, attr)
@@ -143,7 +142,6 @@ local function anyLabelMatches(letterMap, lbl)
     end
     return false
 end
-
 
 -- UI Traversal (Cached)
 local function updateRootCache()
@@ -208,7 +206,6 @@ local function collectItemsOptimized(container, letterMap)
     return found
 end
 
-
 -- Overlay Rendering
 local function clearTips()
     for _, c in pairs(state.tips) do pcall(function() c:hide(); c:delete() end) end
@@ -234,12 +231,11 @@ local function showTip(letter, frame)
     state.tips[letter] = c
 end
 
-
 -- Scan Window Control
 local function startScanWindow()
     scanWindowActive = true
     if scanWindowTimer then scanWindowTimer:stop(); scanWindowTimer=nil end
-    scanWindowTimer = timer.doAfter(5, function()
+    scanWindowTimer = timer.doAfter(8, function()
         scanWindowActive = false
         if activityTimer then activityTimer:stop(); activityTimer=nil end
         if not state.active then clearTips() end
@@ -253,7 +249,6 @@ local function cancelScanWindow()
     if activityTimer then activityTimer:stop(); activityTimer=nil end
     clearTips()
 end
-
 
 -- Activation Logic
 local function activateKeytips(request)
@@ -317,9 +312,7 @@ local function activateKeytips(request)
             if target and target.el then
                 pcall(function() target.el:performAction("AXPress") end)
                 clearTips()
-                timer.doAfter(0.12, function()
-                    if not hardStopped and masterEnabled and scanWindowActive then activateKeytips(type(request)=="table" and request or nil) end
-                end)
+                cancelScanWindow()
                 return true
             end
         end
@@ -327,15 +320,30 @@ local function activateKeytips(request)
         clearTips(); cancelScanWindow(); return false
     end)
     state.active = true; state.tap:start()
-    state.checkTimer = timer.doEvery(0.2, function() if not safeAttr(state.activeContainer,"AXRole") then clearTips() end end)
+    state.checkTimer = timer.doEvery(0.2, function()
+        if not state.activeContainer then return end
+        if safeAttr(state.activeContainer,"AXRole") then
+            containerGoneSince = nil
+        else
+            containerGoneSince = containerGoneSince or nowSeconds()
+            if nowSeconds() - containerGoneSince > 0.6 then
+                clearTips()
+            end
+        end
+    end)
 end
-
 
 -- Event Handlers
 local function handleKeyDown(ev)
     if hardStopped or not masterEnabled or not isExcelFrontmost() then return false end
     local keyCode = ev:getKeyCode()
     if keyCode==keycodes.map.escape then cancelScanWindow(); return false end
+
+    local flags = ev:getFlags()
+    if flags and (flags.alt or flags.altgr) then
+        altIsDown = true
+        lastAltDownTs = nowSeconds()
+    end
 
     if scanWindowActive then
         local ts = nowSeconds()
@@ -358,14 +366,14 @@ local function handleKeyDown(ev)
                     if not p then return true end
                     if not lastParentKey or lastParentKey ~= p then return false end
                     if (ts - lastParentTs)  > CHAIN_TIMEOUT then return false end
-                    if (ts - lastAltDownTs) > CHAIN_TIMEOUT then return false end
+                    if not altIsDown and ((ts - lastAltDownTs) > CHAIN_TIMEOUT) then return false end
                     return true
                 end
                 local valid = {}
                 for _, c in ipairs(candidates) do if chainValid(c) then table.insert(valid, c) end end
                 if #valid>0 then
                     if activityTimer then activityTimer:stop() end
-                    activityTimer = timer.doAfter(0.01, function()
+                    activityTimer = timer.doAfter(0.03, function()
                         activityTimer=nil
                         if not hardStopped and masterEnabled and scanWindowActive then activateKeytips(valid) end
                     end)
@@ -381,7 +389,9 @@ local function handleKeyDown(ev)
         if char and char~="" then
             local letter = string.upper(char)
             if not state.items[letter] then
-                clearTips(); cancelScanWindow(); return false
+                clearTips()
+                startScanWindow()
+                return false
             end
         end
     end
@@ -398,6 +408,7 @@ local function handleFlagsChanged(ev)
     if hardStopped or not isExcelFrontmost() then return false end
     local flags = ev:getFlags()
     local nowDown = flags.alt or flags.altgr
+    altIsDown = nowDown
     if nowDown then
         lastAltDownTs = nowSeconds()
         if state.active then 
@@ -408,7 +419,6 @@ local function handleFlagsChanged(ev)
     end
     return false
 end
-
 
 -- Integration
 local function teardownAndDisable()
