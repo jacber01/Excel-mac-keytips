@@ -161,8 +161,9 @@ function findContainerOptimized(letterMap, minButtons)
     while #queue>0 and processed<800 do
         processed = processed + 1
         local el = table.remove(queue,1)
+
+        local kids = safeAttr(el,"AXChildren")
         if safeAttr(el,"AXRole")=="AXGroup" then
-            local kids = safeAttr(el,"AXChildren")
             if kids then
                 local btnCount, matchCount = 0, 0
                 for _, ch in ipairs(kids) do
@@ -174,11 +175,10 @@ function findContainerOptimized(letterMap, minButtons)
                     end
                 end
                 if btnCount>=minButtons and matchCount>=1 then return el end
-                if processed < 800 - #kids then for _, ch in ipairs(kids) do table.insert(queue,ch) end end
             end
-        else
-            local kids = safeAttr(el,"AXChildren")
-            if kids and processed < 800 - #kids then for _, ch in ipairs(kids) do table.insert(queue,ch) end end
+        end
+        if kids and processed < 800 - #kids then
+            for _, ch in ipairs(kids) do table.insert(queue,ch) end
         end
     end
     return nil
