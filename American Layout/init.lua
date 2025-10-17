@@ -8,7 +8,7 @@ local keycodes  = require("hs.keycodes")
 
 -- Keytip Maps and Contexts
 local LETTER_MAPS = {
-    BORDERS = {O={"Bottom Border"},P={"Top Border"},L={"Left Border"},R={"Right Border"},N={"No Border"},A={"All Borders"},S={"Outside Borders"},T={"Thick Box Border"},M={"More Borders"},B={"Bottom Double Border"},H={"Thick Bottom Border"},C={"Top and Bottom Border"},U={"Top and Thick Bottom Border"},E={"Top and Double Bottom Border"},G={"Draw Border Grid"},X={"Erase Border"}},
+    BORDERS = {O={"Bottom Border"},P={"Top Border"},L={"Left Border"},R={"Right Border"},N={"No Border"},A={"All Borders"},S={"Outside Borders"},T={"Thick Box Border"},M={"More Borders"},B={"Bottom Double Border"},H={"Thick Bottom Border"},D={"Top and Bottom Border"},C={"Top and Thick Bottom Border"},U={"Top and Double Bottom Border"},G={"Draw Border Grid"},E={"Erase Border"}},
     FORMAT  = {H={"Row Height"},A={"AutoFit Row Height"},W={"Column Width"},I={"AutoFit Column Width"},D={"Default Width"},R={"Rename Sheet"},M={"Move or Copy Sheet"},P={"Protect Sheet"},L={"Lock Cell"},F={"Format Cells"}},
     FREEZE  = {F={"Freeze Panes"},R={"Freeze Top Row"},C={"Freeze First Column"}},
     INSERT  = {I={"Insert Cells"},R={"Insert Sheet Rows"},C={"Insert Sheet Columns"},S={"Insert Sheet"}},
