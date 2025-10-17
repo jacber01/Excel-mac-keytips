@@ -14,16 +14,16 @@ local LETTER_MAPS = {
     INSERT  = {I={"Insert Cells"},R={"Insert Sheet Rows"},C={"Insert Sheet Columns"},S={"Insert Sheet"}},
     DELETE  = {D={"Delete Cells"},R={"Delete Sheet Rows"},C={"Delete Sheet Columns"},T={"Delete Table Rows"},L={"Delete Table Columns"},S={"Delete Sheet"}},
     MERGE   = {C={"Center"},A={"Merge Across"},M={"Merge Cells"},U={"Unmerge Cells"}},
-    PASTE   = {K={"Keep Source Formatting"},M={"Match Destination Formatting"}, T={"Keep Text Only"}, E={"Paste Special"}},
+    PASTE   = {K={"Keep Source Formatting"},M={"Match Destination Formatting"}, T={"Keep Text Only"}, S={"Paste Special"}},
     COPY    = {C={"Copy"},P={"Copy as Picture"}},
     GROUP   = {G={"Group"}},
     UNGROUP = {U={"Ungroup"}},
     AUTOSUM = {S={"Sum"},A={"Average"},C={"Count Numbers"},X={"Max"},I={"Min"},M={"More Functions"}},
     ROTATE  = {A={"Angle Counterclockwise"},C={"Angle Clockwise"},V={"Vertical Text"},U={"Rotate Text Up"},D={"Rotate Text Down"},M={"Format Cell Alignment"}},
-    FILL    = {W={"Up"},S={"Down"},D={"Right"},A={"Left"},E={"Series"},R={"Across Workbooks"},J={"Justify"},F={"Flash Fill"}},
+    FILL    = {U={"Up"},D={"Down"},R={"Right"},L={"Left"},S={"Series"},A={"Across Workbooks"},J={"Justify"},F={"Flash Fill"}},
     CLEAR   = {A={"Clear All"},F={"Clear Formats"},C={"Clear Contents"},N={"Clear Comments and Notes"},H={"Clear Hyperlinks"},R={"Remove Hyperlinks"}},
     SORT    = {A={"Sort A to Z"},Z={"Sort Z to A"},C={"Custom Sort"},F={"Filter"},L={"Clear"},R={"Reapply"}},
-    FIND    = {F={"Find"},R={"Replace"},G={"Go To"},S={"Go To Special","Constants"},O={"Formulas"},N={"Notes"},C={"Conditional Formatting"},D={"Data Validation"},B={"Select Objects"},P={"Selection Pane"}},
+    FIND    = {F={"Find"},R={"Replace"},G={"Go To"},S={"Go To Special"},K={"Constants"},O={"Formulas"},N={"Notes"},C={"Conditional Formatting"},D={"Data Validation"},B={"Select Objects"},P={"Selection Pane"}},
 }
 
 local CONTEXTS = {
