@@ -24,6 +24,8 @@ local LETTER_MAPS = {
     CLEAR   = {A={"Clear All"},F={"Clear Formats"},C={"Clear Contents"},N={"Clear Comments and Notes"},H={"Clear Hyperlinks"},R={"Remove Hyperlinks"}},
     SORT    = {A={"Sort A to Z"},Z={"Sort Z to A"},C={"Custom Sort"},F={"Filter"},L={"Clear"},R={"Reapply"}},
     FIND    = {F={"Find"},R={"Replace"},G={"Go To"},S={"Go To Special"},K={"Constants"},O={"Formulas"},N={"Notes"},C={"Conditional Formatting"},D={"Data Validation"},B={"Select Objects"},P={"Selection Pane"}},
+    EQUATION= {I={"Insert New Equation"}},
+    WHATIF  = { S={"Scenario Manager"}, G={"Goal Seek"}, T={"Data Table"} },
 }
 
 local CONTEXTS = {
@@ -43,6 +45,8 @@ local CONTEXTS = {
     {name="clear",   map=LETTER_MAPS.CLEAR,   minButtons=5},
     {name="sort",    map=LETTER_MAPS.SORT,    minButtons=5},
     {name="find",    map=LETTER_MAPS.FIND,    minButtons=6},
+    {name="equation", map=LETTER_MAPS.EQUATION, minButtons=1},
+    {name="whatif",  map=LETTER_MAPS.WHATIF,  minButtons=3},
 }
 
 -- Trigger metadata (used only during the scan window)
@@ -59,11 +63,12 @@ local TRIGGER_CONTEXTS = {
     u={{name="ungroup", parent_menu_trigger="a"},{name="autosum", parent_menu_trigger="h"}},
     fq={{name="rotate", parent_menu_trigger="h"}},
     fi={{name="fill",   parent_menu_trigger="h"}},
-    e={{name="clear",   parent_menu_trigger="h"}},
+    e={{name="clear",   parent_menu_trigger="h"},{name="equation", parent_menu_trigger="n"}},
     s={{name="sort",    parent_menu_trigger="h"}},
     fd={{name="find",   parent_menu_trigger="h"}},
+    w={{name="whatif",  parent_menu_trigger="a"}},
 }
-local PARENT_KEYS = {h=true, w=true, a=true}
+local PARENT_KEYS = {h=true, w=true, a=true, n=true}
 
 -- State and Utility
 local cache = {root=nil, lastUpdate=0}
@@ -77,6 +82,7 @@ local lastParentKey, lastParentTs, lastAltDownTs = nil, 0, 0
 local SEQ_TIMEOUT, CHAIN_TIMEOUT = 1.5, 3.0
 local altIsDown = false
 local containerGoneSince = nil
+local disableWParent = false
 
 local function nowSeconds() if timer and timer.secondsSinceEpoch then return timer.secondsSinceEpoch() end return os.time() end
 local function excelApp() return hs.application.find("com.microsoft.Excel") end
@@ -214,6 +220,7 @@ local function clearTips()
     if state.checkTimer then state.checkTimer:stop(); state.checkTimer=nil end
     state.active, state.activeContainer = false, nil
     keySeqBuffer = ""; lastParentKey = nil
+    disableWParent = false
 end
 
 local function showTip(letter, frame)
@@ -239,6 +246,7 @@ local function startScanWindow()
         scanWindowActive = false
         if activityTimer then activityTimer:stop(); activityTimer=nil end
         if not state.active then clearTips() end
+        disableWParent = false
         keySeqBuffer = ""; lastParentKey = nil
     end)
 end
@@ -247,6 +255,7 @@ local function cancelScanWindow()
     scanWindowActive = false
     if scanWindowTimer then scanWindowTimer:stop(); scanWindowTimer=nil end
     if activityTimer then activityTimer:stop(); activityTimer=nil end
+    disableWParent = false
     clearTips()
 end
 
@@ -305,7 +314,7 @@ local function activateKeytips(request)
         if allowNav then
             clearTips(); cancelScanWindow(); return false
         end
-
+        
         local char = ev:getCharacters()
         if char and char~="" then
             local letter = string.upper(char); local target = state.items[letter]
@@ -351,7 +360,12 @@ local function handleKeyDown(ev)
 
         if char and #char==1 then
             local lower = char:lower()
-            if PARENT_KEYS[lower] then lastParentKey=lower; lastParentTs=ts end
+
+            if PARENT_KEYS[lower] and not (disableWParent and lower == "w") then 
+                lastParentKey=lower; 
+                lastParentTs=ts 
+                disableWParent = (lower=="a") 
+            end
         end
 
         if char and #char==1 then
@@ -416,6 +430,8 @@ local function handleFlagsChanged(ev)
         else 
             startScanWindow()
         end
+    else 
+        disableWParent = false
     end
     return false
 end
