@@ -25,7 +25,7 @@ local LETTER_MAPS = {
     SORT    = {A={"Sort A to Z"},Z={"Sort Z to A"},C={"Custom Sort"},F={"Filter"},L={"Clear"},R={"Reapply"}},
     FIND    = {F={"Find"},R={"Replace"},G={"Go To"},S={"Go To Special"},K={"Constants"},O={"Formulas"},N={"Notes"},C={"Conditional Formatting"},D={"Data Validation"},B={"Select Objects"},P={"Selection Pane"}},
     EQUATION= {I={"Insert New Equation"}},
-    WHATIF  = {S={"Scenario Manager"}, G={"Goal Seek"}, T={"Data Table"}},
+    WHATIF  = { S={"Scenario Manager"}, G={"Goal Seek"}, T={"Data Table"} },
 }
 
 local CONTEXTS = {
@@ -41,10 +41,10 @@ local CONTEXTS = {
     {name="ungroup", map=LETTER_MAPS.UNGROUP, minButtons=1},
     {name="autosum", map=LETTER_MAPS.AUTOSUM, minButtons=5},
     {name="rotate",  map=LETTER_MAPS.ROTATE,  minButtons=4},
-    {name="fill",    map=LETTER_MAPS.FILL,    minButtons=5},
+    {name="fill",    map=LETTER_MAPS.FILL,    minButtons=6},
     {name="clear",   map=LETTER_MAPS.CLEAR,   minButtons=5},
     {name="sort",    map=LETTER_MAPS.SORT,    minButtons=5},
-    {name="find",    map=LETTER_MAPS.FIND,    minButtons=5},
+    {name="find",    map=LETTER_MAPS.FIND,    minButtons=6},
     {name="equation", map=LETTER_MAPS.EQUATION, minButtons=1},
     {name="whatif",  map=LETTER_MAPS.WHATIF,  minButtons=3},
 }
@@ -241,7 +241,6 @@ end
 -- Scan Window Control
 local function startScanWindow()
     scanWindowActive = true
-    if mainTap then mainTap:start() end
     if scanWindowTimer then scanWindowTimer:stop(); scanWindowTimer=nil end
     scanWindowTimer = timer.doAfter(8, function()
         scanWindowActive = false
@@ -249,7 +248,6 @@ local function startScanWindow()
         if not state.active then clearTips() end
         disableWParent = false
         keySeqBuffer = ""; lastParentKey = nil
-        if mainTap then mainTap:stop() end
     end)
 end
 
@@ -259,7 +257,6 @@ local function cancelScanWindow()
     if activityTimer then activityTimer:stop(); activityTimer=nil end
     disableWParent = false
     clearTips()
-    if mainTap then mainTap:stop() end
 end
 
 -- Activation Logic
@@ -286,8 +283,16 @@ local function activateKeytips(request)
     end
 
     if type(request)=="table" and #request>0 then
-        if not tryContexts(request) then return 
+        if not tryContexts(request) then return end
+    else
+        for _, ctx in ipairs(CONTEXTS) do
+            local container = findContainerOptimized(ctx.map, ctx.minButtons)
+            if container then
+                local items = collectItemsOptimized(container, ctx.map)
+                if next(items)~=nil then state.items=items; state.activeContainer=container; break end
+            end
         end
+        if not state.activeContainer then return end
     end
 
     for letter, info in pairs(state.items) do showTip(letter, info.frame) end
@@ -392,12 +397,42 @@ local function handleKeyDown(ev)
             end
         end
     end
+
+    if state.active then
+        local char = ev:getCharacters()
+        if char and char~="" then
+            local letter = string.upper(char)
+            if not state.items[letter] then
+                clearTips()
+                startScanWindow()
+                return false
+            end
+        end
+    end
     return false
 end
 
 local function handleMouseDown()
     if hardStopped or not isExcelFrontmost() then return false end
     cancelScanWindow()
+    return false
+end
+
+local function handleFlagsChanged(ev)
+    if hardStopped or not isExcelFrontmost() then return false end
+    local flags = ev:getFlags()
+    local nowDown = flags.alt or flags.altgr
+    altIsDown = nowDown
+    if nowDown then
+        lastAltDownTs = nowSeconds()
+        if state.active then 
+            clearTips() 
+        else 
+            startScanWindow()
+        end
+    else 
+        disableWParent = false
+    end
     return false
 end
 
@@ -412,35 +447,13 @@ local function teardownAndDisable()
     hs.alert.show("Excel KeyTips: Disabled\n(Reload config to re-enable)")
 end
 
--- Trigger watcher: Only watches Option key
-local triggerTap = eventtap.new({eventtap.event.types.flagsChanged}, function(ev)
-    if hardStopped then return false end
-    if not isExcelFrontmost() then return false end
-    
-    local flags = ev:getFlags()
-    local nowDown = flags.alt or flags.altgr
-    altIsDown = nowDown
-    
-    if nowDown then
-        lastAltDownTs = nowSeconds()
-        if state.active then 
-            clearTips() 
-        else 
-            startScanWindow()
-        end
-    else 
-        disableWParent = false
-    end
-    return false
-end)
-
--- Heavy tap: only runs during scan window
 mainTap = eventtap.new(
-    {eventtap.event.types.keyDown, eventtap.event.types.leftMouseDown},
+    {eventtap.event.types.keyDown, eventtap.event.types.leftMouseDown, eventtap.event.types.flagsChanged},
     function(ev)
         local t = ev:getType()
         if t==eventtap.event.types.keyDown then return handleKeyDown(ev)
         elseif t==eventtap.event.types.leftMouseDown then return handleMouseDown()
+        elseif t==eventtap.event.types.flagsChanged then return handleFlagsChanged(ev)
         end
         return false
     end
@@ -450,10 +463,11 @@ appWatcher = app.watcher.new(function(appName, eventType, appObj)
     if appObj:bundleID()=="com.microsoft.Excel" then
         if eventType==app.watcher.activated then
             if hardStopped then return end
-            if not triggerTap:isEnabled() then triggerTap:start() end
+            mainTap:start()
+            timer.doAfter(0.15, function() if not hardStopped and scanWindowActive then activateKeytips() end end)
         elseif eventType==app.watcher.deactivated then
             if hardStopped then return end
-            if triggerTap:isEnabled() then triggerTap:stop() end
+            mainTap:stop()
             cancelScanWindow()
         elseif eventType==app.watcher.terminated then
             teardownAndDisable()
@@ -462,4 +476,4 @@ appWatcher = app.watcher.new(function(appName, eventType, appObj)
 end)
 
 appWatcher:start()
-if isExcelFrontmost() then triggerTap:start() end
+if isExcelFrontmost() and mainTap then mainTap:start() end
